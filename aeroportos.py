@@ -3,8 +3,7 @@ import streamlit as st
 # Configuração da página
 st.set_page_config(page_title="Distâncias SBBH", page_icon="📍")
 
-# Base de dados extraída da sua planilha "Tempo de Voo APP" (Amostra principal)
-# A base já contém a distância em Milhas Náuticas (NM) a partir da Pampulha (SBBH)
+# Base de dados completa extraída das planilhas "Tempo de Voo APP" e "Tempo de Voo - Origem SBBH"
 AEROPORTOS_MG = {
     "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_nm": 96.9},
     "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_nm": 146.3},
@@ -37,16 +36,42 @@ AEROPORTOS_MG = {
     "SNGX": {"cidade": "Guaxupé", "pista": "1500 x 30", "op_noturna": "Sim", "dist_nm": 179.6},
     "SSDK": {"cidade": "Igaratinga (PRIV)", "pista": "1300 x 30", "op_noturna": "Sim", "dist_nm": 45.9},
     "SBIP": {"cidade": "Ipatinga", "pista": "2004 x 45", "op_noturna": "Sim", "dist_nm": 85.8},
+    
+    # --- AEROPORTOS QUE ESTAVAM COM DISTÂNCIA EM BRANCO NA PLANILHA ---
+    "SNZK": {"cidade": "Itacarambi (PRIV)", "pista": "1560 x 24", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNYB": {"cidade": "Ituiutaba", "pista": "1782 x 30", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNYU": {"cidade": "Iturama", "pista": "1550 x 30", "op_noturna": "Sim", "dist_nm": 0.0},
+    "SNLG": {"cidade": "Jaboticatubas (PRIV)", "pista": "1260 x 20", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNMK": {"cidade": "Jaíba", "pista": "1531 x 30", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNAP": {"cidade": "Janaúba", "pista": "1500 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNCK": {"cidade": "Januária", "pista": "1000 x 20", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJI": {"cidade": "Jequitaí (PRIV)", "pista": "1080 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJQ": {"cidade": "Jequitinhonha", "pista": "1130 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJP": {"cidade": "João Pinheiro", "pista": "1300 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBJF": {"cidade": "Juiz de Fora", "pista": "1535 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNLY": {"cidade": "Lagoa da Prata (PRIV)", "pista": "1000 x 20", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBLS": {"cidade": "Lagoa Santa (MIL)", "pista": "1840 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SSOL": {"cidade": "Lavras", "pista": "1500 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJM": {"cidade": "Manhuaçu", "pista": "1170 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SWWM": {"cidade": "Mantena (PRIV)", "pista": "1050 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SSYF": {"cidade": "Monte Alegre de Minas (PRIV)", "pista": "1200 x 24", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNBM": {"cidade": "Muriaé", "pista": "1140 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNNU": {"cidade": "Nanuque", "pista": "1220 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNTD": {"cidade": "Natalândia (PRIV)", "pista": "1350 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SSYD": {"cidade": "Nova Ponte (PRIV)", "pista": "1500 x 45", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNRZ": {"cidade": "Oliveira", "pista": "1180 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNOF": {"cidade": "Ouro Fino", "pista": "1050 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNPA": {"cidade": "Pará de Minas", "pista": "1260 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
 }
 
 # Ordena os aeroportos por ordem alfabética da cidade para facilitar a busca
 AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[1]['cidade']))
 
 st.title("📍 Consulta de Aeroportos - MG")
-st.write("Consulte rapidamente a distância em relação à Pampulha (SBBH) e dados da pista.")
+st.write("Consulte rapidamente a distância em milhas náuticas (NM) a partir da Pampulha (SBBH).")
 
 with st.container():
-    # A caixa de seleção agora permite buscar pelo NOME DA CIDADE e mostra o INDICATIVO
+    # Caixa de seleção com busca pelo Nome da Cidade e Indicativo
     indicativo_selecionado = st.selectbox(
         "Selecione ou digite o Destino:", 
         options=list(AEROPORTOS_ORDENADOS.keys()),
@@ -56,11 +81,20 @@ with st.container():
 if st.button("Consultar Destino", type="primary"):
     dados = AEROPORTOS_ORDENADOS[indicativo_selecionado]
     
-    # Conversão de Milhas Náuticas para Quilômetros (1 NM = 1.852 km)
-    dist_km = dados["dist_nm"] * 1.852
-    
-    # Formatação visual do alerta de operação noturna
-    icone_noturno = "✅ " + dados['op_noturna'] if "Sim" in dados['op_noturna'] else "⚠️ " + dados['op_noturna']
+    # Tratamento visual da Operação Noturna
+    op_noturna = dados.get('op_noturna', 'Verificar')
+    if "Sim" in op_noturna:
+        icone_noturno = f"✅ {op_noturna}"
+    elif "Não" in op_noturna or "Inoperante" in op_noturna:
+        icone_noturno = f"⚠️ {op_noturna}"
+    else:
+        icone_noturno = f"❓ {op_noturna}"
+        
+    # Tratamento visual da Distância (Para avisar se ainda for 0.0)
+    if dados["dist_nm"] > 0:
+        dist_display = f"**{dados['dist_nm']} NM**"
+    else:
+        dist_display = "⚠️ *Pendente de cadastro (Preencher no código)*"
 
     st.success("✅ Consulta realizada com sucesso!")
     
@@ -69,10 +103,7 @@ if st.button("Consultar Destino", type="primary"):
     
     | Informação Operacional | Dados |
     | :--- | :--- |
-    | **Distância (Milhas Náuticas)** | **{dados['dist_nm']:.1f} NM** |
-    | **Distância (Quilômetros)** | {dist_km:.1f} Km |
+    | **Distância** | {dist_display} |
     | **Dimensões da Pista** | 📏 {dados['pista']} |
     | **Operação Noturna** | 🌙 {icone_noturno} |
     """)
-    
-    st.info("💡 Dica: Você pode usar o valor em Milhas Náuticas (NM) na Calculadora de Custos para estimar a missão.")
