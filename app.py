@@ -35,7 +35,13 @@ st.write("Selecione a aeronave e informe a distância para calcular o custo e o 
 
 # Agrupando os inputs para organização
 with st.container():
-    prefixo = st.selectbox("Selecione a Aeronave:", list(BASE_DADOS.keys()))
+    # A mágica acontece aqui no "format_func", que junta o Prefixo + Modelo visualmente
+    prefixo = st.selectbox(
+        "Selecione a Aeronave:", 
+        options=list(BASE_DADOS.keys()),
+        format_func=lambda x: f"{x} - {BASE_DADOS[x]['modelo']}"
+    )
+    
     # format="%g" remove a exibição obrigatória de casas decimais
     distancia_nm = st.number_input("Insira a Distância (NM):", min_value=0.0, value=100.0, step=1.0, format="%g")
 
