@@ -1,46 +1,16 @@
 import streamlit as st
 
-# Banco de dados completo com todas as aeronaves da DTA (excluindo PTMGS)
+# Banco de dados oficial limpo e padronizado para toda a frota (excluindo PTMGS)
 BASE_DADOS = {
-    "PTWGS": {
-        "modelo": "B200 - BE20",
-        "t1": {"vel_kt": 200, "val_hora": 9705.13},
-        "t2": {"vel_kt": 225, "val_hora": 9705.13, "custo_total": 10783.48},
-    },
-    "PP-LCE": {
-        "modelo": "C550",
-        "t1": {"vel_kt": 290, "val_hora": 18266.14},
-        "t2": {"vel_kt": 300, "val_hora": 18266.14, "custo_total": 15221.78},
-    },
-    "ESQUILO": {
-        "modelo": "AS350 - AS50",
-        "t1": {"vel_kt": 100, "val_hora": 9788.57},
-        "t2": {"vel_kt": 100, "val_hora": 9788.57, "custo_total": 12235.71},
-    },
-    "PP-EJO": {
-        "modelo": "B300 - BE20",
-        "t1": {"vel_kt": 220, "val_hora": 9705.13},
-    },
-    "PR-XAA": {
-        "modelo": "B350 - BE30",
-        "t1": {"vel_kt": 220, "val_hora": 12318.67},
-    },
-    "PR-OSO": {
-        "modelo": "C90 - BE9L",
-        "t1": {"vel_kt": 200, "val_hora": 6323.05},
-    },
-    "PT-OSO": {
-        "modelo": "C90 - BE9L",
-        "t1": {"vel_kt": 200, "val_hora": 6323.05},
-    },
-    "PP-EPO": {
-        "modelo": "N2 - AS65",
-        "t1": {"vel_kt": 110, "val_hora": 26135.07},
-    },
-    "PR-DTG": {
-        "modelo": "N3 - AS65",
-        "t1": {"vel_kt": 110, "val_hora": 26135.07},
-    },
+    "PTWGS": {"modelo": "B200 - BE20", "vel_kt": 200, "val_hora": 9705.13},
+    "PP-LCE": {"modelo": "C550", "vel_kt": 290, "val_hora": 18266.14},
+    "ESQUILO": {"modelo": "AS350 - AS50", "vel_kt": 100, "val_hora": 9788.57},
+    "PP-EJO": {"modelo": "B300 - BE20", "vel_kt": 220, "val_hora": 9705.13},
+    "PR-XAA": {"modelo": "B350 - BE30", "vel_kt": 220, "val_hora": 12318.67},
+    "PR-OSO": {"modelo": "C90 - BE9L", "vel_kt": 200, "val_hora": 6323.05},
+    "PT-OSO": {"modelo": "C90 - BE9L", "vel_kt": 200, "val_hora": 6323.05},
+    "PP-EPO": {"modelo": "N2 - AS65", "vel_kt": 110, "val_hora": 26135.07},
+    "PR-DTG": {"modelo": "N3 - AS65", "vel_kt": 110, "val_hora": 26135.07},
 }
 
 
@@ -58,7 +28,7 @@ st.write(
     " tempo de voo."
 )
 
-# Lista ordenada de aeronaves disponíveis no seletor
+# Seleção da Aeronave
 prefixo = st.selectbox("Selecione a Aeronave:", list(BASE_DADOS.keys()))
 distancia_nm = st.number_input(
     "Insira a Distância (NM):", min_value=0.0, value=100.0, step=1.0
@@ -66,26 +36,13 @@ distancia_nm = st.number_input(
 
 if st.button("Calcular Missão"):
   anv = BASE_DADOS[prefixo]
-  t1 = anv["t1"]
 
   # Cálculo exato do tempo de voo decimal
-  tempo_decimal_t1 = distancia_nm / t1["vel_kt"]
+  tempo_decimal = distancia_nm / anv["vel_kt"]
+  tempo_str = formatar_tempo(tempo_decimal)
 
-  # Regra de 1 hora (se houver parâmetro t2 cadastrado)
-  if tempo_decimal_t1 >= 1.0 and "t2" in anv:
-    t2 = anv["t2"]
-    tempo_decimal_t2 = distancia_nm / t2["vel_kt"]
-    tempo_str = formatar_tempo(tempo_decimal_t2)
-    custo_total = (
-        t2["custo_total"] * (distancia_nm / 250)
-        if "custo_total" in t2
-        else (tempo_decimal_t2 * t2["val_hora"])
-    )
-    regra = "Tabela 2 (>= 1h)"
-  else:
-    tempo_str = formatar_tempo(tempo_decimal_t1)
-    custo_total = tempo_decimal_t1 * t1["val_hora"]
-    regra = "Tabela 1 (< 1h)" if "t2" in anv else "Cálculo Proporcional"
+  # Custo total exato: Tempo de Voo Decimal × Valor da Hora de Voo
+  custo_total = tempo_decimal * anv["val_hora"]
 
   custo_fmt = (
       f"R$ {custo_total:,.2f}"
@@ -100,5 +57,4 @@ if st.button("Calcular Missão"):
     * **Distância:** {distancia_nm} NM
     * **Tempo de Voo:** {tempo_str}
     * **Custo Total Estimado:** **{custo_fmt}**
-    * **Regra Aplicada:** {regra}
     """)
