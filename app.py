@@ -1,35 +1,20 @@
 import streamlit as st
 
-# Banco de dados interno com os parâmetros exatos da planilha oficial
+# Banco de dados corrigido alinhado com a planilha oficial
 BASE_DADOS = {
     "PP-LCE": {
         "modelo": "C550",
-        "t1": {
-            "vel_kt": 290,
-            "val_hora": 18266.14,
-            "consumo_medio": 680,
-            "val_litro": 6.00,
-        },
+        "t1": {"vel_kt": 290, "val_hora": 18266.14},
         "t2": {"vel_kt": 300, "val_hora": 18266.14, "custo_total": 15221.78},
     },
     "PTWGS": {
         "modelo": "B200 - BE20",
-        "t1": {
-            "vel_kt": 200,
-            "val_hora": 9705.13,
-            "consumo_medio": 455,
-            "val_litro": 6.00,
-        },
+        "t1": {"vel_kt": 200, "val_hora": 9705.13},
         "t2": {"vel_kt": 225, "val_hora": 9705.13, "custo_total": 10783.48},
     },
     "ESQUILO": {
         "modelo": "AS350 - AS50",
-        "t1": {
-            "vel_kt": 100,
-            "val_hora": 9788.57,
-            "consumo_medio": 340,
-            "val_litro": 6.00,
-        },
+        "t1": {"vel_kt": 100, "val_hora": 9788.57},
         "t2": {"vel_kt": 100, "val_hora": 9788.57, "custo_total": 12235.71},
     },
 }
@@ -66,7 +51,6 @@ if st.button("Calcular Missão"):
     t2 = anv["t2"]
     tempo_decimal_t2 = distancia_nm / t2["vel_kt"]
     tempo_str = formatar_tempo(tempo_decimal_t2)
-    # Para Tabela 2 (voos longos)
     custo_total = (
         t2["custo_total"] * (distancia_nm / 250)
         if "custo_total" in t2
@@ -75,13 +59,8 @@ if st.button("Calcular Missão"):
     regra = "Tabela 2 (>= 1h)"
   else:
     tempo_str = formatar_tempo(tempo_decimal_t1)
-
-    # CORREÇÃO DA FÓRMULA DE CUSTO (Baseada no tempo decimal exato da planilha)
-    custo_operacional = tempo_decimal_t1 * t1["val_hora"]
-    custo_combustivel = (
-        tempo_decimal_t1 * t1["consumo_medio"] * t1["val_litro"]
-    )
-    custo_total = custo_operacional + custo_combustivel
+    # Custo total é exatamente o tempo decimal multiplicado pelo valor da hora de voo
+    custo_total = tempo_decimal_t1 * t1["val_hora"]
     regra = "Tabela 1 (< 1h)"
 
   custo_fmt = (
