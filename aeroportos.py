@@ -3,7 +3,7 @@ import streamlit as st
 # Configuração da página
 st.set_page_config(page_title="Distâncias SBBH", page_icon="📍")
 
-# Base de dados completa extraída das planilhas "Tempo de Voo APP" e "Tempo de Voo - Origem SBBH"
+# Base de dados completa (A-Z) extraída da planilha "Tempo de Voo APP"
 AEROPORTOS_MG = {
     "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_nm": 96.9},
     "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_nm": 146.3},
@@ -37,7 +37,7 @@ AEROPORTOS_MG = {
     "SSDK": {"cidade": "Igaratinga (PRIV)", "pista": "1300 x 30", "op_noturna": "Sim", "dist_nm": 45.9},
     "SBIP": {"cidade": "Ipatinga", "pista": "2004 x 45", "op_noturna": "Sim", "dist_nm": 85.8},
     
-    # --- AEROPORTOS QUE ESTAVAM COM DISTÂNCIA EM BRANCO NA PLANILHA ---
+    # --- AEROPORTOS PENDENTES DE CADASTRO DE DISTÂNCIA NA PLANILHA (VALOR ZERO) ---
     "SNZK": {"cidade": "Itacarambi (PRIV)", "pista": "1560 x 24", "op_noturna": "Não", "dist_nm": 0.0},
     "SNYB": {"cidade": "Ituiutaba", "pista": "1782 x 30", "op_noturna": "Não", "dist_nm": 0.0},
     "SNYU": {"cidade": "Iturama", "pista": "1550 x 30", "op_noturna": "Sim", "dist_nm": 0.0},
@@ -55,6 +55,7 @@ AEROPORTOS_MG = {
     "SNJM": {"cidade": "Manhuaçu", "pista": "1170 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SWWM": {"cidade": "Mantena (PRIV)", "pista": "1050 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SSYF": {"cidade": "Monte Alegre de Minas (PRIV)", "pista": "1200 x 24", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBMK": {"cidade": "Montes Claros", "pista": "2100 x 45", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SNBM": {"cidade": "Muriaé", "pista": "1140 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SNNU": {"cidade": "Nanuque", "pista": "1220 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SNTD": {"cidade": "Natalândia (PRIV)", "pista": "1350 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
@@ -62,9 +63,36 @@ AEROPORTOS_MG = {
     "SNRZ": {"cidade": "Oliveira", "pista": "1180 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SNOF": {"cidade": "Ouro Fino", "pista": "1050 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
     "SNPA": {"cidade": "Pará de Minas", "pista": "1260 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNZR": {"cidade": "Paracatu", "pista": "1500 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SWZT": {"cidade": "Paraopeba (PRIV)", "pista": "1240 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNOS": {"cidade": "Passos", "pista": "1500 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNPD": {"cidade": "Patos de Minas", "pista": "1700 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNPJ": {"cidade": "Patrocínio", "pista": "1200 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNPX": {"cidade": "Pirapora", "pista": "1480 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNUH": {"cidade": "Piumhi", "pista": "1148 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBPC": {"cidade": "Poços de Caldas", "pista": "1515 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNCZ": {"cidade": "Ponte Nova", "pista": "1060 x 30", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNZA": {"cidade": "Pouso Alegre", "pista": "1280 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNSS": {"cidade": "Salinas", "pista": "1480 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SIEX": {"cidade": "Santa Vitória (PRIV)", "pista": "1106 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJV": {"cidade": "São João da Ponte (PRIV)", "pista": "1600 x 18", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNJR": {"cidade": "São João Del Rei", "pista": "1400 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNLO": {"cidade": "São Lourenço", "pista": "1300 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNPY": {"cidade": "São Sebastião do Paraíso", "pista": "1600 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SDJR": {"cidade": "Sete Lagoas", "pista": "1500 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNTO": {"cidade": "Teófilo Otoni", "pista": "1190 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNVI": {"cidade": "Três Corações", "pista": "1300 x 23", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNAS": {"cidade": "Três Marias", "pista": "1500 x 45", "op_noturna": "Não", "dist_nm": 0.0},
+    "SNFI": {"cidade": "Tupaciguara (PRIV)", "pista": "1500 x 26", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNUB": {"cidade": "Ubá", "pista": "1402 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBUR": {"cidade": "Uberaba", "pista": "1759 x 45", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBUL": {"cidade": "Uberlândia", "pista": "2100 x 45", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SBVG": {"cidade": "Varginha", "pista": "2100 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SSAT": {"cidade": "Vazante (PRIV)", "pista": "1500 x 22", "op_noturna": "Verificar", "dist_nm": 0.0},
+    "SNVC": {"cidade": "Viçosa", "pista": "1105 x 30", "op_noturna": "Verificar", "dist_nm": 0.0},
 }
 
-# Ordena os aeroportos por ordem alfabética da cidade para facilitar a busca
+# Ordena os aeroportos por ordem alfabética da cidade para facilitar a busca no menu
 AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[1]['cidade']))
 
 st.title("📍 Consulta de Aeroportos - MG")
