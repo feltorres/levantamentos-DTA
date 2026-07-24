@@ -99,7 +99,7 @@ AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS.items(), key=lambda item: item[1][
 
 # --- BASE DE DADOS: FROTA ---
 FROTA = {
-    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax", "requer_pista_1200": True},
+    "Citation Bravo (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax", "requer_pista_1200": True},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
     "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem<br>9 Pax s/ Bagagem"},
     "King Air B200 (PTWGS)": {
