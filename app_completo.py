@@ -94,17 +94,17 @@ AEROPORTOS_MG = {
 }
 AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[1]['cidade']))
 
-# --- BASE DE DADOS: FROTA (Conforme Planilha de Custos Oficial) ---
+# --- BASE DE DADOS: FROTA ---
 FROTA = {
-    "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "consumo_lh": 1020, "pax": "Até 09 Pax"},
-    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "consumo_lh": 680, "pax": "07 Pax"},
-    "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "consumo_lh": 440, "pax": "Até 09 Pax C/ bagagem"},
-    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "consumo_lh": 440, "pax": "Até 09 Pax"},
-    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "consumo_lh": 455, "pax": "07 Pax"},
-    "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "consumo_lh": 320, "pax": "06 Pax"},
-    "Dauphin N3 (PR-DTG)": {"vel_kt": 110, "valor_hora": 26135.07, "consumo_lh": 340, "pax": "06 Pax"},
-    "Dauphin N2 (PP-EPO)": {"vel_kt": 110, "valor_hora": 26135.07, "consumo_lh": 320, "pax": "05 Pax"},
-    "Esquilo AS350": {"vel_kt": 100, "valor_hora": 9788.57, "consumo_lh": 340, "pax": "04 Pax"},
+    "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "pax": "Até 09 Pax"},
+    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
+    "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
+    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax com bagagem ou 9 sem bagagem"},
+    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "pax": "7 Pax com bagagem ou 9 sem bagagem"},
+    "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "pax": "06 Pax"},
+    "Dauphin N3 (PR-DTG)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "06 Pax"},
+    "Dauphin N2 (PP-EPO)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "05 Pax"},
+    "Esquilo AS350": {"vel_kt": 100, "valor_hora": 9788.57, "pax": "04 Pax"},
 }
 
 # --- MOTOR DE CÁLCULO DE DISTÂNCIA GPS ---
@@ -157,7 +157,6 @@ with col2:
     st.subheader("✈️ Aeronave")
     aeronave_selecionada = st.selectbox("Selecione o Equipamento:", options=list(FROTA.keys()))
     dados_aeronave = FROTA[aeronave_selecionada]
-    margem_operacional = st.checkbox("Adicionar 15 min de margem (Táxi/Aproximação) por trecho", value=False)
 
 if st.button("Calcular Missão Completa", type="primary", use_container_width=True):
     with st.spinner("Buscando coordenadas satelitais e processando custos..."):
@@ -170,16 +169,12 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     # Cálculos Matemáticos (Trecho Único)
     vel_kt = dados_aeronave['vel_kt']
     tempo_decimal_trecho = distancia / vel_kt
-    if margem_operacional:
-        tempo_decimal_trecho += 0.25  # 15 minutos adicionais
         
     custo_trecho = tempo_decimal_trecho * dados_aeronave['valor_hora']
-    consumo_trecho = tempo_decimal_trecho * dados_aeronave['consumo_lh']
 
     # Cálculos Matemáticos (Ida e Volta)
     tempo_decimal_total = tempo_decimal_trecho * 2
     custo_total = custo_trecho * 2
-    consumo_total = consumo_trecho * 2
 
     # Exibição dos Resultados
     st.success("✅ Missão processada com sucesso!")
@@ -200,11 +195,9 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     with res_col1:
         st.info(f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**")
         st.write(f"**Tempo de Voo:** {decimal_para_horas_minutos(tempo_decimal_trecho)}")
-        st.write(f"**Consumo Estimado:** {consumo_trecho:.0f} Litros")
         st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         
     with res_col2:
         st.error(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**")
         st.write(f"**Tempo Total de Voo:** {decimal_para_horas_minutos(tempo_decimal_total)}")
-        st.write(f"**Consumo Estimado:** {consumo_total:.0f} Litros")
         st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
