@@ -8,7 +8,6 @@ import pandas as pd
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
 
 # --- BASE DE DADOS: AEROPORTOS ---
-# Inserido SBBH na base geral. Inserido UF="MG" padrão.
 AEROPORTOS = {
     "SBBH": {"cidade": "Belo Horizonte", "pista": "2364 x 30", "op_noturna": "Sim", "uf": "MG"},
     "SBCF": {"cidade": "Confins", "pista": "3600 x 45", "op_noturna": "Sim", "uf": "MG"},
@@ -99,14 +98,14 @@ AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS.items(), key=lambda item: item[1][
 
 # --- BASE DE DADOS: FROTA ---
 FROTA = {
-    "Citation Bravo (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax", "requer_pista_1200": True},
+    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax", "requer_pista_1200": True},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
-    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem<br>9 Pax s/ Bagagem"},
+    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
     "King Air B200 (PTWGS)": {
         "vel_kt": 200,             
         "vel_kt_t2": 225,          
         "valor_hora": 9705.13, 
-        "pax": "7 Pax c/ Bagagem<br>9 Pax s/ Bagagem", 
+        "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem", 
         "regra_tabela_dupla": True 
     },
     "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "pax": "06 Pax"},
@@ -247,7 +246,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         if origem in coords and destino in coords:
             dist_nm = calcular_distancia_nm(coords[origem]['lat'], coords[origem]['lon'], coords[destino]['lat'], coords[destino]['lon'])
         else:
-            dist_nm = 0 # Fallback se falhar download do DB
+            dist_nm = 0 
             erros_restricao.append(f"Trecho {i+1}: Falha ao localizar coordenadas no banco global.")
             
         # 3. Regra de Tabelas (B200)
@@ -280,55 +279,58 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         for erro in erros_restricao:
             st.error(f"🚨 {erro}")
     else:
-        # Construção da Tabela HTML (Padrão Excel)
+        # CONSTRUÇÃO DA TABELA COMPACTADA (Evita bugs do Streamlit Markdown)
         html_linhas = ""
         for linha in linhas_tabela:
             custo_formatado = f"R$ {linha['custo']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-            html_linhas += f"""
-            <tr style='background-color: #ffffff; color: #000000; text-align: center;'>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_orig']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_orig']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_orig']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_dest']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_dest']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_dest']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['tempo']}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{custo_formatado}</td>
-                <td style='padding: 8px; border: 1px solid #000000;'>{linha['pax']}</td>
-            </tr>
-            """
+            pax_formatado = str(linha['pax']).replace('\n', '<br>')
+            html_linhas += (
+                "<tr style='background-color: #ffffff; color: #000000; text-align: center;'>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_orig']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_orig']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_orig']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_dest']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_dest']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_dest']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['tempo']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{custo_formatado}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000;'>{pax_formatado}</td>"
+                "</tr>"
+            )
             
         custo_final_formatado = f"R$ {custo_total_missao:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
-        tabela_html = f"""
-        <table style='width:100%; text-align:center; border-collapse: collapse; font-family: sans-serif; border: 2px solid #000000;'>
-            <thead>
-                <tr style='background-color: #9bc2e6; color: #000000; border: 1px solid #000000;'>
-                    <th colspan="3" style='padding: 8px; border: 1px solid #000000;'>ORIGEM</th>
-                    <th colspan="3" style='padding: 8px; border: 1px solid #000000;'>DESTINO</th>
-                    <th colspan="3" style='padding: 8px; border: 1px solid #000000;'>AERONAVE<br>{aeronave_selecionada}</th>
-                </tr>
-                <tr style='background-color: #ddebf7; color: #000000; font-size: 14px;'>
-                    <th style='padding: 10px; border: 1px solid #000000;'>MUNICÍPIO - DECOLAGEM</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>UF</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>INDIC</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>MUNICÍPIO - POUSO</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>UF</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>INDIC</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>TEMPO DE<br>DESLOCAMENTO</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>CUSTO TOTAL<br>ESTIMADO DA MISSÃO</th>
-                    <th style='padding: 10px; border: 1px solid #000000;'>CAPACIDADE</th>
-                </tr>
-            </thead>
-            <tbody>
-                {html_linhas}
-                <tr style='background-color: #f2f2f2; color: #000000; font-weight: bold;'>
-                    <td colspan="7" style='padding: 10px; text-align: right; border: 1px solid #000000;'>TOTAL</td>
-                    <td colspan="2" style='padding: 10px; text-align: left; border: 1px solid #000000;'>{custo_final_formatado}</td>
-                </tr>
-            </tbody>
-        </table>
-        """
+        tabela_html = (
+            "<div style='overflow-x: auto;'>"
+            "<table style='width:100%; text-align:center; border-collapse: collapse; font-family: sans-serif; border: 2px solid #000000;'>"
+            "<thead>"
+            "<tr style='background-color: #9bc2e6; color: #000000; border: 1px solid #000000;'>"
+            "<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>ORIGEM</th>"
+            "<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>DESTINO</th>"
+            f"<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>AERONAVE<br>{aeronave_selecionada}</th>"
+            "</tr>"
+            "<tr style='background-color: #ddebf7; color: #000000; font-size: 14px;'>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>MUNICÍPIO - DECOLAGEM</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>UF</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>INDIC</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>MUNICÍPIO - POUSO</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>UF</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>INDIC</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>TEMPO DE<br>DESLOCAMENTO</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>CUSTO TOTAL<br>ESTIMADO DA MISSÃO</th>"
+            "<th style='padding: 10px; border: 1px solid #000000;'>CAPACIDADE</th>"
+            "</tr>"
+            "</thead>"
+            "<tbody>"
+            f"{html_linhas}"
+            "<tr style='background-color: #f2f2f2; color: #000000; font-weight: bold;'>"
+            "<td colspan='7' style='padding: 10px; text-align: right; border: 1px solid #000000;'>TOTAL</td>"
+            f"<td colspan='2' style='padding: 10px; text-align: left; border: 1px solid #000000;'>{custo_final_formatado}</td>"
+            "</tr>"
+            "</tbody>"
+            "</table>"
+            "</div>"
+        )
         
         st.success("✅ Rotas calculadas e validadas com sucesso.")
         st.markdown(tabela_html, unsafe_allow_html=True)
