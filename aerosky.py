@@ -5,7 +5,29 @@ import json
 import time
 
 # ---------------------------------------------------------
-# Função: Buscar coordenadas no SkyVector
+# Converter DMS para decimal
+# ---------------------------------------------------------
+
+def dms_to_decimal(dms):
+    # Exemplo: 19°51'03"S
+    dms = dms.replace("°", " ").replace("'", " ").replace('"', " ")
+    parts = dms.split()
+
+    deg = float(parts[0])
+    min_ = float(parts[1])
+    sec = float(parts[2])
+    hemi = parts[3]
+
+    decimal = deg + min_/60 + sec/3600
+
+    if hemi in ["S", "W"]:
+        decimal = -decimal
+
+    return decimal
+
+
+# ---------------------------------------------------------
+# Buscar coordenadas no SkyVector (novo HTML)
 # ---------------------------------------------------------
 
 def get_coords_from_skyvector(icao):
@@ -15,20 +37,33 @@ def get_coords_from_skyvector(icao):
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    coords_tag = soup.find("span", {"id": "coords"})
-    if not coords_tag:
+    # Latitude e longitude ficam na tabela aptHeaderTable
+    table = soup.find("table", {"class": "aptHeaderTable"})
+    if not table:
+        raise ValueError(f"Não encontrei tabela de coordenadas para {icao}")
+
+    tds = table.find_all("td")
+
+    lat_dms = None
+    lon_dms = None
+
+    for i in range(len(tds)):
+        if "Latitude" in tds[i].text:
+            lat_dms = tds[i+1].text.strip()
+        if "Longitude" in tds[i].text:
+            lon_dms = tds[i+1].text.strip()
+
+    if not lat_dms or not lon_dms:
         raise ValueError(f"Coordenadas não encontradas para {icao}")
 
-    coords_text = coords_tag.text.strip()
+    lat = dms_to_decimal(lat_dms)
+    lon = dms_to_decimal(lon_dms)
 
-    lat_str = coords_text.split("Lat:")[1].split(",")[0].strip()
-    lon_str = coords_text.split("Lon:")[1].strip()
-
-    return float(lat_str), float(lon_str)
+    return lat, lon
 
 
 # ---------------------------------------------------------
-# Função: Distância ortodrômica (NM)
+# Distância ortodrômica (NM)
 # ---------------------------------------------------------
 
 def haversine_nm(lat1, lon1, lat2, lon2):
@@ -52,7 +87,7 @@ def haversine_nm(lat1, lon1, lat2, lon2):
 
 print("Buscando coordenadas de SBBH...")
 SBBH_LAT, SBBH_LON = get_coords_from_skyvector("SBBH")
-print(f"SBBH → LAT {SBBH_LAT}, LON {SBBH_LON}\n")
+print(f"SBBH LAT={SBBH_LAT}, LON={SBBH_LON}\n")
 
 
 # ---------------------------------------------------------
@@ -81,7 +116,7 @@ for icao in ICAOS:
         dist_nm = round(haversine_nm(SBBH_LAT, SBBH_LON, lat, lon), 1)
         distancias[icao] = dist_nm
         print(f"{icao}: {dist_nm} NM\n")
-        time.sleep(1)  # evita bloqueio do SkyVector
+        time.sleep(1)
     except Exception as e:
         print(f"Erro ao processar {icao}: {e}")
 
@@ -95,15 +130,3 @@ with open("distancias.json", "w") as f:
 
 print("\nArquivo distancias.json criado com sucesso!")
 
-
-# ---------------------------------------------------------
-# Gerar arquivo pronto para o Streamlit
-# ---------------------------------------------------------
-
-with open("aeroportos_atualizados.py", "w") as f:
-    f.write("DIST_ATUALIZADAS = {\n")
-    for icao, dist in distancias.items():
-        f.write(f'    "{icao}": {dist},\n')
-    f.write("}\n")
-
-print("Arquivo aeroportos_atualizados.py criado com sucesso!")
