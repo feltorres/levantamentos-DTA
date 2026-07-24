@@ -2,7 +2,6 @@ import streamlit as st
 import urllib.request
 import csv
 import math
-import pandas as pd
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
@@ -172,7 +171,7 @@ def verifica_restricao_pista(icao, aeronave_nome):
             
     return False, ""
 
-# --- CONTROLE DE ESTADO (MÚLTIPLAS PERNAS COM AERONAVES INDIVIDUAIS) ---
+# --- CONTROLE DE ESTADO (MÚLTIPLAS PERNAS) ---
 if 'trechos' not in st.session_state:
     st.session_state.trechos = [{"origem": "SBBH", "destino": "SBCF", "aeronave": list(FROTA.keys())[0]}]
 
@@ -188,46 +187,22 @@ def remover_trecho():
     if len(st.session_state.trechos) > 1:
         st.session_state.trechos.pop()
 
-# --- ESTILOS DE IMPRESSÃO CSS ---
-st.markdown("""
-<style>
-@media print {
-    body * {
-        visibility: hidden;
-    }
-    #tabela-missao-container, #tabela-missao-container * {
-        visibility: visible;
-    }
-    #tabela-missao-container {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-    }
-    .stButton, header, footer {
-        display: none !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
 # --- INTERFACE ---
 st.title("🚁 Planejador de Missões Aéreas - DTA")
 st.write("Roteirizador Dinâmico Point-to-Point com Especificação de Aeronave por Perna")
 
 st.divider()
-st.subheader("📍 Construção da Rota & Equipamentos")
+st.subheader("📍 Rota da Missão")
 
 opcoes_aeroportos = list(AEROPORTOS_ORDENADOS.keys())
 formatador = lambda x: f"{AEROPORTOS_ORDENADOS[x]['cidade']} ({x})"
 
-# Renderização dinâmica dos trechos com aeronave própria
+# Interface de Seleção Compactada (sem textos extras ou traços)
 for i in range(len(st.session_state.trechos)):
-    st.markdown(f"**Trecho {i+1}**")
     col1, col2, col3 = st.columns([3, 3, 4])
     with col1:
         st.session_state.trechos[i]["origem"] = st.selectbox(
-            f"Origem Trecho {i+1}", 
+            f"{i+1}. Origem", 
             options=opcoes_aeroportos, 
             index=opcoes_aeroportos.index(st.session_state.trechos[i]["origem"]),
             format_func=formatador,
@@ -235,7 +210,7 @@ for i in range(len(st.session_state.trechos)):
         )
     with col2:
         st.session_state.trechos[i]["destino"] = st.selectbox(
-            f"Destino Trecho {i+1}", 
+            f"{i+1}. Destino", 
             options=opcoes_aeroportos, 
             index=opcoes_aeroportos.index(st.session_state.trechos[i]["destino"]),
             format_func=formatador,
@@ -243,13 +218,14 @@ for i in range(len(st.session_state.trechos)):
         )
     with col3:
         st.session_state.trechos[i]["aeronave"] = st.selectbox(
-            f"Aeronave Trecho {i+1}", 
+            f"{i+1}. Aeronave (Equipamento)", 
             options=list(FROTA.keys()), 
             index=list(FROTA.keys()).index(st.session_state.trechos[i]["aeronave"]),
             key=f"aeronave_{i}"
         )
-    st.markdown("---")
 
+# Botões de Adicionar/Remover
+st.write("") # Pequeno respiro visual
 col_add, col_rem, _ = st.columns([2, 2, 8])
 col_add.button("➕ Adicionar Trecho", on_click=adicionar_trecho)
 if len(st.session_state.trechos) > 1:
@@ -270,21 +246,21 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         aeronave_escolhida = trecho["aeronave"]
         dados_aero = FROTA[aeronave_escolhida]
         
-        # 1. Validação de Restrições (Pista < 1200 ou Fechada)
+        # 1. Validação de Restrições
         restricao_origem, erro_origem = verifica_restricao_pista(origem, aeronave_escolhida)
         restricao_destino, erro_destino = verifica_restricao_pista(destino, aeronave_escolhida)
         
         if restricao_origem: erros_restricao.append(f"Trecho {i+1}: {erro_origem}")
         if restricao_destino: erros_restricao.append(f"Trecho {i+1}: {erro_destino}")
         
-        # 2. Cálculo da Distância (Haversine GPS)
+        # 2. Cálculo da Distância Ortodrômica
         if origem in coords and destino in coords:
             dist_nm = calcular_distancia_nm(coords[origem]['lat'], coords[origem]['lon'], coords[destino]['lat'], coords[destino]['lon'])
         else:
             dist_nm = 0 
             erros_restricao.append(f"Trecho {i+1}: Falha ao localizar coordenadas no banco global.")
             
-        # 3. Regra de Tabelas (B200)
+        # 3. Regra de Tabelas
         vel_kt = dados_aero['vel_kt']
         if dados_aero.get("regra_tabela_dupla"):
             tempo_base = dist_nm / vel_kt if vel_kt > 0 else 0
@@ -296,27 +272,26 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         custo_perna = tempo_decimal * dados_aero['valor_hora']
         custo_total_missao += custo_perna
         
-        # Estrutura da Linha para o HTML
+        # Estrutura para o HTML
         linhas_tabela.append({
             "mun_orig": AEROPORTOS[origem]['cidade'],
             "uf_orig": AEROPORTOS[origem]['uf'],
             "ind_orig": origem,
-            "tipo": dados_aero['tipo_sigla'],
             "mun_dest": AEROPORTOS[destino]['cidade'],
             "uf_dest": AEROPORTOS[destino]['uf'],
             "ind_dest": destino,
+            "anv": dados_aero['tipo_sigla'], # A coluna agora chama ANV e fica após ICAO de Destino
             "tempo": decimal_para_hhmmss(tempo_decimal),
             "custo": custo_perna,
-            "pax": dados_aero['pax'],
-            "aeronave_nome": aeronave_escolhida
+            "pax": dados_aero['pax']
         })
 
-    # Renderização Condicional
+    # Renderização
     if erros_restricao:
         for erro in erros_restricao:
             st.error(f"🚨 {erro}")
     else:
-        # CONSTRUÇÃO DA TABELA COMPACTADA (Evita bugs do Streamlit Markdown)
+        # GERADOR HTML SEGURO (Compacto numa só variável para não quebrar no Streamlit)
         html_linhas = ""
         for linha in linhas_tabela:
             custo_formatado = f"R$ {linha['custo']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -326,10 +301,10 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_orig']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_orig']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_orig']}</td>"
-                f"<td style='padding: 8px; border: 1px solid #000000; font-weight: bold; background-color: #f9f9f9;'>{linha['tipo']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_dest']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['uf_dest']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['ind_dest']}</td>"
+                f"<td style='padding: 8px; border: 1px solid #000000; font-weight: bold; background-color: #f9f9f9;'>{linha['anv']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['tempo']}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{custo_formatado}</td>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{pax_formatado}</td>"
@@ -338,23 +313,24 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
             
         custo_final_formatado = f"R$ {custo_total_missao:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         
+        # ESTRUTURA COMPLETA DA TABELA
         tabela_html = (
-            f"<div id='tabela-missao-container' style='overflow-x: auto;'>"
-            "<table style='width:100%; text-align:center; border-collapse: collapse; font-family: sans-serif; border: 2px solid #000000;'>"
+            "<div id='tabela-missao-container' style='overflow-x: auto;'>"
+            "<table id='tabela-missao' style='width:100%; text-align:center; border-collapse: collapse; font-family: sans-serif; border: 2px solid #000000;'>"
             "<thead>"
             "<tr style='background-color: #9bc2e6; color: #000000; border: 1px solid #000000;'>"
-            "<th colspan='4' style='padding: 8px; border: 1px solid #000000;'>ORIGEM</th>"
+            "<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>ORIGEM</th>"
             "<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>DESTINO</th>"
-            "<th colspan='3' style='padding: 8px; border: 1px solid #000000;'>AERONAVE / FROTA MULTIPERNA</th>"
+            "<th colspan='4' style='padding: 8px; border: 1px solid #000000;'>AERONAVE / FROTA MULTIPERNA</th>"
             "</tr>"
             "<tr style='background-color: #ddebf7; color: #000000; font-size: 13px;'>"
             "<th style='padding: 8px; border: 1px solid #000000;'>MUNICÍPIO - DECOLAGEM</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>UF</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>ICAO</th>"
-            "<th style='padding: 8px; border: 1px solid #000000;'>TIPO</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>MUNICÍPIO - POUSO</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>UF</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>ICAO</th>"
+            "<th style='padding: 8px; border: 1px solid #000000;'>ANV</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>TEMPO DE<br>DESLOCAMENTO</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>CUSTO TOTAL<br>ESTIMADO DA MISSÃO</th>"
             "<th style='padding: 8px; border: 1px solid #000000;'>CAPACIDADE</th>"
@@ -373,16 +349,22 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         
         st.success("✅ Rotas calculadas e validadas com sucesso.")
         
-        # Botão de Impressão / Print
-        st.markdown(
-            """
-            <div style="text-align: right; margin-top: 15px; margin-bottom: 15px;">
-                <button onclick="window.print()" style="background-color: #1f77b4; color: white; padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; font-weight: bold; box-shadow: 0px 2px 5px rgba(0,0,0,0.2);">
-                    🖨️ Imprimir / Salvar PDF da Tabela
-                </button>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # BOTÃO ÍCONE DE CÓPIA DIRETA COM JAVASCRIPT
+        botao_copia_html = """
+        <div style="text-align: right; margin-bottom: 5px;">
+            <button onclick="
+                var range = document.createRange();
+                range.selectNode(document.getElementById('tabela-missao'));
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+                document.execCommand('copy');
+                window.getSelection().removeAllRanges();
+                alert('Tabela copiada com sucesso! Pronta para colar no Excel.');
+            " title="Copiar Tabela" style="background: transparent; border: none; font-size: 32px; cursor: pointer;">
+                📋
+            </button>
+        </div>
+        """
         
+        st.markdown(botao_copia_html, unsafe_allow_html=True)
         st.markdown(tabela_html, unsafe_allow_html=True)
