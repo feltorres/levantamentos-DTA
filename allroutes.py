@@ -123,19 +123,49 @@ def calcular_distancia_nm(lat1, lon1, lat2, lon2):
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def buscar_coordenadas():
+    # Fallback offline para pistas que não constam no banco de dados global (OurAirports)
+    coords_backup = {
+        "SNGQ": {'lat': -19.7411, 'lon': -45.2447}, # Bom Despacho
+        "SIWH": {'lat': -18.4752, 'lon': -47.1916}, # Coromandel
+        "SDNA": {'lat': -19.7616, 'lon': -49.0763}, # Comendador Gomes
+        "SNXV": {'lat': -18.7613, 'lon': -44.8988}, # Felixlândia
+        "SSVG": {'lat': -20.7672, 'lon': -45.9186}, # Guapé
+        "SNSR": {'lat': -17.7802, 'lon': -47.0988}, # Guarda-Mor
+        "SSDK": {'lat': -19.9547, 'lon': -44.6069}, # Igaratinga
+        "SNLY": {'lat': -20.0219, 'lon': -45.5458}, # Lagoa da Prata
+        "SWWM": {'lat': -18.0647, 'lon': -40.9788}, # Mantena
+        "SSYF": {'lat': -18.8711, 'lon': -48.8805}, # Monte Alegre de Minas
+        "SNTD": {'lat': -16.4858, 'lon': -46.5413}, # Natalândia
+        "SSYD": {'lat': -19.1416, 'lon': -47.6780}, # Nova Ponte
+        "SWZT": {'lat': -19.2736, 'lon': -44.4041}, # Paraopeba
+        "SIEX": {'lat': -18.8419, 'lon': -50.1219}, # Santa Vitória
+        "SNJV": {'lat': -15.9344, 'lon': -44.0105}, # São João da Ponte
+        "SNFI": {'lat': -18.5908, 'lon': -48.7052}, # Tupaciguara
+        "SSAT": {'lat': -17.9869, 'lon': -46.9058}, # Vazante
+        "SNJN": {'lat': -15.4677, 'lon': -44.3644}, # Januária
+        "SNBG": {'lat': -19.4672, 'lon': -41.0119}, # Aymorés
+        "SNAR": {'lat': -16.1683, 'lon': -40.6694}, # Almenara
+        "SNKD": {'lat': -19.0436, 'lon': -43.4350}, # Conceição do Mato Dentro
+        "SNJI": {'lat': -17.2288, 'lon': -44.4372}, # Jequitaí
+        "SICK": {'lat': -17.6694, 'lon': -42.5488}, # Capelinha
+        "SNLG": {'lat': -19.5161, 'lon': -43.7436}, # Jaboticatubas
+        "SNEW": {'lat': -19.6894, 'lon': -50.6866}, # Carneirinho
+    }
+    
     url = "https://davidmegginson.github.io/ourairports-data/airports.csv"
     try:
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=5) as response:
             linhas = [linha.decode('utf-8') for linha in response.readlines()]
         leitor = csv.DictReader(linhas)
-        coords = {}
         for linha in leitor:
             if linha['ident'] in AEROPORTOS:
-                coords[linha['ident']] = {'lat': float(linha['latitude_deg']), 'lon': float(linha['longitude_deg'])}
-        return coords
+                # Atualiza o dicionário de backup com as coordenadas oficiais, se existirem
+                coords_backup[linha['ident']] = {'lat': float(linha['latitude_deg']), 'lon': float(linha['longitude_deg'])}
+        return coords_backup
     except Exception:
-        return {}
+        # Em caso de falha de conexão, retorna o fallback como proteção
+        return coords_backup
 
 def decimal_para_hhmmss(tempo_decimal):
     horas = int(tempo_decimal)
@@ -258,7 +288,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
             dist_nm = calcular_distancia_nm(coords[origem]['lat'], coords[origem]['lon'], coords[destino]['lat'], coords[destino]['lon'])
         else:
             dist_nm = 0 
-            erros_restricao.append(f"Trecho {i+1}: Falha ao localizar coordenadas no banco global.")
+            erros_restricao.append(f"Trecho {i+1}: Falha ao localizar coordenadas no banco global ({origem} ou {destino}).")
             
         # 3. Regra de Tabelas
         vel_kt = dados_aero['vel_kt']
@@ -280,7 +310,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
             "mun_dest": AEROPORTOS[destino]['cidade'],
             "uf_dest": AEROPORTOS[destino]['uf'],
             "ind_dest": destino,
-            "anv": dados_aero['tipo_sigla'], # A coluna agora chama ANV e fica após ICAO de Destino
+            "anv": dados_aero['tipo_sigla'],
             "tempo": decimal_para_hhmmss(tempo_decimal),
             "custo": custo_perna,
             "pax": dados_aero['pax']
