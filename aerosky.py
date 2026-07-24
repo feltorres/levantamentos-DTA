@@ -1,111 +1,210 @@
-import requests
-from bs4 import BeautifulSoup
+import streamlit as st
+import urllib.request
+import csv
 import math
-import json
-import time
 
-# ---------------------------------------------------------
-# Converter DMS para decimal
-# ---------------------------------------------------------
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
 
-def dms_to_decimal(dms):
-    dms = dms.replace("°", " ").replace("'", " ").replace('"', " ")
-    parts = dms.split()
+# --- BASE DE DADOS: AEROPORTOS (Plano B da Distância) ---
+AEROPORTOS_MG = {
+    "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 96.9},
+    "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_planilha": 146.3},
+    "SNAR": {"cidade": "Almenara", "pista": "1400 x 30", "op_noturna": "Inoperante", "dist_planilha": 289.5},
+    "SNUI": {"cidade": "Araçuaí", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 210.3},
+    "SNAG": {"cidade": "Araguari", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 250.7},
+    "SBAX": {"cidade": "Araxá", "pista": "1900 x 30", "op_noturna": "Inoperante", "dist_planilha": 171.1},
+    "SNBG": {"cidade": "Aymorés", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 165.8},
+    "SBBQ": {"cidade": "Barbacena (MIL)", "pista": "1760 x 30", "op_noturna": "Sim", "dist_planilha": 85.7},
+    "SNGQ": {"cidade": "Bom Despacho", "pista": "1000 x 18", "op_noturna": "Sim", "dist_planilha": 75.2},
+    "SNCA": {"cidade": "Campo Belo", "pista": "1420 x 30", "op_noturna": "Não", "dist_planilha": 99.9},
+    "SICK": {"cidade": "Capelinha", "pista": "1229 x 30", "op_noturna": "Sim. Só decola.", "dist_planilha": 153.4},
+    "SNCT": {"cidade": "Caratinga", "pista": "1080 x 23", "op_noturna": "Não", "dist_planilha": 104.2},
+    "SNEW": {"cidade": "Carneirinho", "pista": "1250 x 29", "op_noturna": "Não", "dist_planilha": 395.8},
+    "SNXB": {"cidade": "Caxambú", "pista": "1500 x 30", "op_noturna": "Sim", "dist_planilha": 136.6},
+    "SDNA": {"cidade": "Comendador Gomes (PRIV)", "pista": "1300 x 23", "op_noturna": "Não", "dist_planilha": 285.3},
+    "SNKD": {"cidade": "Conceição do Mato Dentro", "pista": "960 x 23", "op_noturna": "Não", "dist_planilha": 57.9},
+    "SBCF": {"cidade": "Confins", "pista": "3600 x 45", "op_noturna": "Sim", "dist_planilha": 13.7},
+    "SNKF": {"cidade": "Conselheiro Lafaiete", "pista": "902 x 24", "op_noturna": "Não", "dist_planilha": 53.9},
+    "SIWH": {"cidade": "Coromandel", "pista": "1300 x 20", "op_noturna": "Sim", "dist_planilha": 203.3},
+    "SNQV": {"cidade": "Curvelo", "pista": "1200 x 23", "op_noturna": "Não", "dist_planilha": 72.2},
+    "SNDT": {"cidade": "Diamantina", "pista": "1700 x 30", "op_noturna": "Sim", "dist_planilha": 98.8},
+    "SNDV": {"cidade": "Divinópolis", "pista": "1520 x 30", "op_noturna": "Sim", "dist_planilha": 55.5},
+    "SNXV": {"cidade": "Felixlândia (PRIV)", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 92.9},
+    "SNFU": {"cidade": "Frutal", "pista": "1320 x 30", "op_noturna": "Sim", "dist_planilha": 282.9},
+    "SBZM": {"cidade": "Goianá", "pista": "2525 x 45", "op_noturna": "Sim", "dist_planilha": 108.9},
+    "SBGV": {"cidade": "Governador Valadares", "pista": "1701 x 30", "op_noturna": "Sim", "dist_planilha": 125.4},
+    "SSVG": {"cidade": "Guapé (PRIV)", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 127.0},
+    "SNSR": {"cidade": "Guarda-Mor (PRIV)", "pista": "1100 x 25", "op_noturna": "Não", "dist_planilha": 220.9},
+    "SNGX": {"cidade": "Guaxupé", "pista": "1500 x 30", "op_noturna": "Sim", "dist_planilha": 179.6},
+    "SSDK": {"cidade": "Igaratinga (PRIV)", "pista": "1300 x 30", "op_noturna": "Sim", "dist_planilha": 45.9},
+    "SBIP": {"cidade": "Ipatinga", "pista": "2004 x 45", "op_noturna": "Sim", "dist_planilha": 85.8},
+    "SNZK": {"cidade": "Itacarambi", "pista": "1560 x 24", "op_noturna": "Não", "dist_planilha": 315},
+    "SNYB": {"cidade": "Ituiutaba", "pista": "1782 x 30", "op_noturna": "Não", "dist_planilha": 295},
+    "SNYU": {"cidade": "Iturama", "pista": "1550 x 30", "op_noturna": "Sim", "dist_planilha": 365},
+    "SNLG": {"cidade": "Jaboticatubas (PRIV)", "pista": "1260 x 20", "op_noturna": "Não", "dist_planilha": 28.5},
+    "SNMK": {"cidade": "Jaíba", "pista": "1531 x 30", "op_noturna": "Não", "dist_planilha": 285},
+    "SNAP": {"cidade": "Janaúba", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 270},
+    "SNJN": {"cidade": "Januária", "pista": "NÃO HOMOLOGADO", "op_noturna": "Não", "dist_planilha": 280},
+    "SNJI": {"cidade": "Jequitaí (PRIV)", "pista": "1080 x 18", "op_noturna": "Não", "dist_planilha": 190},
+    "SNJQ": {"cidade": "Jequitinhonha", "pista": "1130 x 23", "op_noturna": "Não", "dist_planilha": 245},
+    "SNJP": {"cidade": "João Pinheiro", "pista": "1300 x 23", "op_noturna": "Não", "dist_planilha": 210},
+    "SBJF": {"cidade": "Juiz de Fora", "pista": "1535 x 30", "op_noturna": "Sim", "dist_planilha": 102.5},
+    "SNLY": {"cidade": "Lagoa da Prata (PRIV)", "pista": "1000 x 20", "op_noturna": "Não", "dist_planilha": 92},
+    "SBLS": {"cidade": "Lagoa Santa (MIL)", "pista": "1840 x 30", "op_noturna": "Sim", "dist_planilha": 11.5},
+    "SSOL": {"cidade": "Lavras", "pista": "1500 x 30", "op_noturna": "Sim", "dist_planilha": 118},
+    "SNJM": {"cidade": "Manhuaçu", "pista": "1170 x 30", "op_noturna": "Não", "dist_planilha": 128},
+    "SWWM": {"cidade": "Mantena (PRIV)", "pista": "1050 x 18", "op_noturna": "Não", "dist_planilha": 160},
+    "SSYF": {"cidade": "Monte Alegre de Minas (PRIV)", "pista": "1200 x 24", "op_noturna": "Não", "dist_planilha": 290},
+    "SBMK": {"cidade": "Montes Claros", "pista": "2100 x 45", "op_noturna": "Sim", "dist_planilha": 212},
+    "SNBM": {"cidade": "Muriaé", "pista": "1140 x 23", "op_noturna": "Não", "dist_planilha": 138},
+    "SNNU": {"cidade": "Nanuque", "pista": "1220 x 23", "op_noturna": "Sim", "dist_planilha": 258},
+    "SNTD": {"cidade": "Natalândia (PRIV)", "pista": "1350 x 23", "op_noturna": "Não", "dist_planilha": 230},
+    "SSYD": {"cidade": "Nova Ponte (PRIV)", "pista": "1500 x 45", "op_noturna": "Não", "dist_planilha": 218},
+    "SNRZ": {"cidade": "Oliveira", "pista": "1180 x 18", "op_noturna": "Não", "dist_planilha": 71.5},
+    "SNOF": {"cidade": "Ouro Fino", "pista": "1050 x 23", "op_noturna": "Não", "dist_planilha": 152},
+    "SNPA": {"cidade": "Pará de Minas", "pista": "1260 x 23", "op_noturna": "Não", "dist_planilha": 38},
+    "SNZR": {"cidade": "Paracatu", "pista": "1500 x 30", "op_noturna": "Sim", "dist_planilha": 270},
+    "SWZT": {"cidade": "Paraopeba (PRIV)", "pista": "1240 x 23", "op_noturna": "Não", "dist_planilha": 52},
+    "SNOS": {"cidade": "Passos", "pista": "1500 x 30", "op_noturna": "Sim", "dist_planilha": 148},
+    "SNPD": {"cidade": "Patos de Minas", "pista": "1700 x 30", "op_noturna": "Sim", "dist_planilha": 190},
+    "SNPJ": {"cidade": "Patrocínio", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 180},
+    "SNPX": {"cidade": "Pirapora", "pista": "1480 x 30", "op_noturna": "Sim", "dist_planilha": 152},
+    "SNUH": {"cidade": "Piumhi", "pista": "1148 x 30", "op_noturna": "Não", "dist_planilha": 110},
+    "SBPC": {"cidade": "Poços de Caldas", "pista": "1515 x 30", "op_noturna": "Sim", "dist_planilha": 182},
+    "SNCZ": {"cidade": "Ponte Nova", "pista": "1060 x 30", "op_noturna": "Não", "dist_planilha": 82},
+    "SNZA": {"cidade": "Pouso Alegre", "pista": "1280 x 30", "op_noturna": "Sim", "dist_planilha": 160},
+    "SNSS": {"cidade": "Salinas", "pista": "1480 x 30", "op_noturna": "Sim", "dist_planilha": 248},
+    "SIEX": {"cidade": "Santa Vitória (PRIV)", "pista": "1106 x 18", "op_noturna": "Não", "dist_planilha": 360},
+    "SNJV": {"cidade": "São João da Ponte (PRIV)", "pista": "1600 x 18", "op_noturna": "Não", "dist_planilha": 240},
+    "SNJR": {"cidade": "São João Del Rei", "pista": "1400 x 30", "op_noturna": "Sim", "dist_planilha": 98},
+    "SNLO": {"cidade": "São Lourenço", "pista": "1300 x 30", "op_noturna": "Não", "dist_planilha": 148},
+    "SNPY": {"cidade": "São Sebastião do Paraíso", "pista": "1600 x 30", "op_noturna": "Sim", "dist_planilha": 188},
+    "SDJR": {"cidade": "Sete Lagoas", "pista": "1500 x 23", "op_noturna": "Sim", "dist_planilha": 28},
+    "SNTO": {"cidade": "Teófilo Otoni", "pista": "1190 x 23", "op_noturna": "Sim", "dist_planilha": 188},
+    "SNVI": {"cidade": "Três Corações", "pista": "1300 x 23", "op_noturna": "Sim", "dist_planilha": 121},
+    "SNAS": {"cidade": "Três Marias", "pista": "1500 x 45", "op_noturna": "Não", "dist_planilha": 115},
+    "SNFI": {"cidade": "Tupaciguara (PRIV)", "pista": "1500 x 26", "op_noturna": "Não", "dist_planilha": 280},
+    "SNUB": {"cidade": "Ubá", "pista": "1402 x 30", "op_noturna": "Sim", "dist_planilha": 102},
+    "SBUR": {"cidade": "Uberaba", "pista": "1759 x 45", "op_noturna": "Sim", "dist_planilha": 228},
+    "SBUL": {"cidade": "Uberlândia", "pista": "2100 x 45", "op_noturna": "Sim", "dist_planilha": 248},
+    "SBVG": {"cidade": "Varginha", "pista": "2100 x 30", "op_noturna": "Sim", "dist_planilha": 130},
+    "SSAT": {"cidade": "Vazante (PRIV)", "pista": "1500 x 22", "op_noturna": "Sim", "dist_planilha": 232},
+    "SNVC": {"cidade": "Viçosa", "pista": "1105 x 30", "op_noturna": "Sim", "dist_planilha": 86.5},
+}
+AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[1]['cidade']))
 
-    deg = float(parts[0])
-    min_ = float(parts[1])
-    sec = float(parts[2])
-    hemi = parts[3]
+# --- BASE DE DADOS: FROTA (Conforme Planilha de Custos Oficial) ---
+FROTA = {
+    "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "consumo_lh": 1020, "pax": "Até 09 Pax"},
+    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "consumo_lh": 680, "pax": "07 Pax"},
+    "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "consumo_lh": 440, "pax": "Até 09 Pax C/ bagagem"},
+    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "consumo_lh": 440, "pax": "Até 09 Pax"},
+    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "consumo_lh": 455, "pax": "07 Pax"},
+    "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "consumo_lh": 320, "pax": "06 Pax"},
+    "Dauphin N3 (PR-DTG)": {"vel_kt": 110, "valor_hora": 26135.07, "consumo_lh": 340, "pax": "06 Pax"},
+    "Dauphin N2 (PP-EPO)": {"vel_kt": 110, "valor_hora": 26135.07, "consumo_lh": 320, "pax": "05 Pax"},
+    "Esquilo AS350": {"vel_kt": 100, "valor_hora": 9788.57, "consumo_lh": 340, "pax": "04 Pax"},
+}
 
-    decimal = deg + min_/60 + sec/3600
+# --- MOTOR DE CÁLCULO DE DISTÂNCIA GPS ---
+def calcular_distancia_nm(lat1, lon1, lat2, lon2):
+    R = 3440.065 # Raio da Terra em Milhas Náuticas
+    dLat, dLon = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dLat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dLon/2)**2
+    return round(R * (2 * math.asin(math.sqrt(a))), 1)
 
-    if hemi in ["S", "W"]:
-        decimal = -decimal
-
-    return decimal
-
-
-# ---------------------------------------------------------
-# Buscar coordenadas no SkyVector (novo HTML)
-# ---------------------------------------------------------
-
-def get_coords_from_skyvector(icao):
-    url = f"https://skyvector.com/airport/{icao}"
-    headers = {"User-Agent": "Mozilla/5.0"}
-
-    r = requests.get(url, headers=headers)
-    soup = BeautifulSoup(r.text, "html.parser")
-
-    table = soup.find("table", {"class": "aptHeaderTable"})
-    if not table:
-        raise ValueError(f"Não encontrei tabela de coordenadas para {icao}")
-
-    tds = table.find_all("td")
-
-    lat_dms = None
-    lon_dms = None
-
-    for i in range(len(tds)):
-        if "Latitude" in tds[i].text:
-            lat_dms = tds[i+1].text.strip()
-        if "Longitude" in tds[i].text:
-            lon_dms = tds[i+1].text.strip()
-
-    if not lat_dms or not lon_dms:
-        raise ValueError(f"Coordenadas não encontradas para {icao}")
-
-    lat = dms_to_decimal(lat_dms)
-    lon = dms_to_decimal(lon_dms)
-
-    return lat, lon
-
-
-# ---------------------------------------------------------
-# Coordenadas da origem SBBH (fixas, oficiais)
-# ---------------------------------------------------------
-
-SBBH_LAT = -19.8511
-SBBH_LON = -43.9506
-
-print(f"SBBH LAT={SBBH_LAT}, LON={SBBH_LON}\n")
-
-
-# ---------------------------------------------------------
-# Lista de ICAOs (Ipatinga → Viçosa)
-# ---------------------------------------------------------
-
-ICAOS = [
-    "SBIP","SNZK","SNYB","SNYU","SNLG","SNMK","SNAP","SNCK","SNJI","SNJQ","SNJP",
-    "SBJF","SNLY","SBLS","SSOL","SNJM","SWWM","SSYF","SBMK","SNBM","SNNU","SNTD",
-    "SSYD","SNRZ","SNOF","SNPA","SNZR","SWZT","SNOS","SNPD","SNPJ","SNPX","SNUH",
-    "SBPC","SNCZ","SNZA","SNSS","SIEX","SNJV","SNJR","SNLO","SNPY","SDJR","SNTO",
-    "SNVI","SNAS","SNFI","SNUB","SBUR","SBUL","SBVG","SSAT","SNVC"
-]
-
-
-# ---------------------------------------------------------
-# Cálculo das distâncias
-# ---------------------------------------------------------
-
-distancias = {}
-
-for icao in ICAOS:
+@st.cache_data(ttl=86400, show_spinner=False)
+def buscar_coordenadas_e_distancias():
+    url = "https://davidmegginson.github.io/ourairports-data/airports.csv"
     try:
-        print(f"Buscando coordenadas de {icao}...")
-        lat, lon = get_coords_from_skyvector(icao)
-        dist_nm = round(haversine_nm(SBBH_LAT, SBBH_LON, lat, lon), 1)
-        distancias[icao] = dist_nm
-        print(f"{icao}: {dist_nm} NM\n")
-        time.sleep(1)
-    except Exception as e:
-        print(f"Erro ao processar {icao}: {e}")
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            linhas = [linha.decode('utf-8') for linha in response.readlines()]
+        leitor = csv.DictReader(linhas)
+        coords = {linha['ident']: {'lat': float(linha['latitude_deg']), 'lon': float(linha['longitude_deg'])} 
+                  for linha in leitor if linha['ident'] == 'SBBH' or linha['ident'] in AEROPORTOS_MG}
+        
+        if 'SBBH' not in coords: return {}
+        sbbh = coords['SBBH']
+        return {icao: calcular_distancia_nm(sbbh['lat'], sbbh['lon'], c['lat'], c['lon']) for icao, c in coords.items()}
+    except Exception:
+        return {}
 
+# --- FUNÇÃO AUXILIAR DE TEMPO ---
+def decimal_para_horas_minutos(tempo_decimal):
+    horas = int(tempo_decimal)
+    minutos = int((tempo_decimal - horas) * 60)
+    return f"{horas}h {minutos:02d}m"
 
-# ---------------------------------------------------------
-# Salvar JSON
-# ---------------------------------------------------------
+# --- INTERFACE DE USUÁRIO ---
+st.title("🚁 Planejador de Missões Aéreas - DTA")
+st.write("Integração Automática: Cálculo Geográfico de Distância + Custos Operacionais de Frota")
+st.divider()
 
-with open("distancias.json", "w") as f:
-    json.dump(distancias, f, indent=4)
+col1, col2 = st.columns(2)
 
-print("\nArquivo distancias.json criado com sucesso!")
+with col1:
+    st.subheader("📍 Rota")
+    indicativo_selecionado = st.selectbox(
+        "Selecione o Destino (Origem: SBBH):", 
+        options=list(AEROPORTOS_ORDENADOS.keys()),
+        format_func=lambda x: f"{AEROPORTOS_ORDENADOS[x]['cidade']} ({x})"
+    )
+    dados_aeroporto = AEROPORTOS_ORDENADOS[indicativo_selecionado]
+
+with col2:
+    st.subheader("✈️ Aeronave")
+    aeronave_selecionada = st.selectbox("Selecione o Equipamento:", options=list(FROTA.keys()))
+    dados_aeronave = FROTA[aeronave_selecionada]
+    margem_operacional = st.checkbox("Adicionar 15 min de margem (Táxi/Aproximação) por trecho", value=False)
+
+if st.button("Calcular Missão Completa", type="primary", use_container_width=True):
+    with st.spinner("Buscando coordenadas satelitais e processando custos..."):
+        distancias_gps = buscar_coordenadas_e_distancias()
+        
+    # Lógica de Distância
+    distancia = distancias_gps.get(indicativo_selecionado, dados_aeroporto['dist_planilha'])
+    fonte_dist = "Satélite/GPS" if indicativo_selecionado in distancias_gps else "Planilha Histórica"
+
+    # Cálculos Matemáticos (Trecho Único)
+    vel_kt = dados_aeronave['vel_kt']
+    tempo_decimal_trecho = distancia / vel_kt
+    if margem_operacional:
+        tempo_decimal_trecho += 0.25  # 15 minutos adicionais
+        
+    custo_trecho = tempo_decimal_trecho * dados_aeronave['valor_hora']
+    consumo_trecho = tempo_decimal_trecho * dados_aeronave['consumo_lh']
+
+    # Cálculos Matemáticos (Ida e Volta)
+    tempo_decimal_total = tempo_decimal_trecho * 2
+    custo_total = custo_trecho * 2
+    consumo_total = consumo_trecho * 2
+
+    # Exibição dos Resultados
+    st.success("✅ Missão processada com sucesso!")
+    
+    # 1. Informações do Destino e Aeronave
+    st.markdown("### 📊 Resumo Operacional")
+    info_col1, info_col2, info_col3, info_col4 = st.columns(4)
+    info_col1.metric("Distância (Trecho)", f"{distancia} NM", f"Fonte: {fonte_dist}", delta_color="off")
+    info_col2.metric("Dimensões da Pista", dados_aeroporto['pista'])
+    info_col3.metric("Operação Noturna", "✅ Sim" if "Sim" in dados_aeroporto.get('op_noturna', '') else "⚠️ Não/Inoperante")
+    info_col4.metric("Capacidade da Aeronave", dados_aeronave['pax'])
+    
+    st.divider()
+
+    # 2. Custos e Tempos (Comparativo Trecho vs Completo)
+    res_col1, res_col2 = st.columns(2)
+    
+    with res_col1:
+        st.info(f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**")
+        st.write(f"**Tempo de Voo:** {decimal_para_horas_minutos(tempo_decimal_trecho)}")
+        st.write(f"**Consumo Estimado:** {consumo_trecho:.0f} Litros")
+        st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        
+    with res_col2:
+        st.error(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**")
+        st.write(f"**Tempo Total de Voo:** {decimal_para_horas_minutos(tempo_decimal_total)}")
+        st.write(f"**Consumo Estimado:** {consumo_total:.0f} Litros")
+        st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
