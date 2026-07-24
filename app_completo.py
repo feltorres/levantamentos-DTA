@@ -172,7 +172,6 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("📍 Rota")
     
-    # Renderização condicional baseada na escolha do usuário
     if modo_consulta == "Selecionar Aeroporto na Lista (GPS)":
         indicativo_selecionado = st.selectbox(
             "Selecione o Destino (Origem: SBBH):", 
@@ -181,14 +180,14 @@ with col1:
         )
         distancia_manual = None
     else:
-        distancia_manual = st.number_input("Insira a Distância do Trecho em Milhas Náuticas (NM):", min_value=1.0, value=100.0, step=1.0)
+        # Removido o step=0.1, mantendo apenas números inteiros
+        distancia_manual = st.number_input("Insira a Distância do Trecho em Milhas Náuticas (NM):", min_value=1, value=100, step=1)
         indicativo_selecionado = None
 
 with col2:
     st.subheader("✈️ Aeronave")
     aeronave_selecionada = st.selectbox("Selecione o Equipamento:", options=list(FROTA.keys()))
     dados_aeronave = FROTA[aeronave_selecionada]
-
 
 if st.button("Calcular Missão Completa", type="primary", use_container_width=True):
     
@@ -201,7 +200,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         distancia = distancias_gps.get(indicativo_selecionado, dados_aeroporto['dist_planilha'])
         fonte_dist = "Satélite/GPS" if indicativo_selecionado in distancias_gps else "Planilha Histórica"
     else:
-        distancia = distancia_manual
+        distancia = float(distancia_manual) # Converte para float para manter a matemática de tabelas funcionando
         fonte_dist = "Inserção Manual"
 
     # --- LÓGICA DE VELOCIDADE & REGRA DE TABELAS ---
@@ -229,7 +228,6 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     st.markdown("### 📊 Resumo Operacional")
     info_col1, info_col2, info_col3, info_col4 = st.columns(4)
     
-    # A linha de resumo muda dinamicamente se for manual ou via GPS
     info_col1.metric("Distância (Trecho)", f"{distancia} NM", f"Fonte: {fonte_dist}", delta_color="off")
     
     if modo_consulta == "Selecionar Aeroporto na Lista (GPS)":
