@@ -7,14 +7,15 @@ import math
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
 
 # --- BASE DE DADOS: AEROPORTOS (Plano B / Backup Offline) ---
+# Adicionada a flag "restricao_anac": True nos aeroportos inoperantes
 AEROPORTOS_MG = {
-    "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 96.9},
+    "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 96.9, "restricao_anac": True},
     "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_planilha": 146.3},
     "SNAR": {"cidade": "Almenara", "pista": "1400 x 30", "op_noturna": "Inoperante", "dist_planilha": 289.5},
     "SNUI": {"cidade": "Araçuaí", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 210.3},
-    "SNAG": {"cidade": "Araguari", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 250.7},
+    "SNAG": {"cidade": "Araguari", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 250.7, "restricao_anac": True},
     "SBAX": {"cidade": "Araxá", "pista": "1900 x 30", "op_noturna": "Inoperante", "dist_planilha": 171.1},
-    "SNBG": {"cidade": "Aymorés", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 165.8},
+    "SNBG": {"cidade": "Aymorés", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 165.8, "restricao_anac": True},
     "SBBQ": {"cidade": "Barbacena (MIL)", "pista": "1760 x 30", "op_noturna": "Sim", "dist_planilha": 85.7},
     "SNGQ": {"cidade": "Bom Despacho", "pista": "1000 x 18", "op_noturna": "Sim", "dist_planilha": 75.2},
     "SNCA": {"cidade": "Campo Belo", "pista": "1420 x 30", "op_noturna": "Não", "dist_planilha": 99.9},
@@ -25,7 +26,7 @@ AEROPORTOS_MG = {
     "SDNA": {"cidade": "Comendador Gomes (PRIV)", "pista": "1300 x 23", "op_noturna": "Não", "dist_planilha": 285.3},
     "SNKD": {"cidade": "Conceição do Mato Dentro", "pista": "960 x 23", "op_noturna": "Não", "dist_planilha": 57.9},
     "SBCF": {"cidade": "Confins", "pista": "3600 x 45", "op_noturna": "Sim", "dist_planilha": 13.7},
-    "SNKF": {"cidade": "Conselheiro Lafaiete", "pista": "902 x 24", "op_noturna": "Não", "dist_planilha": 53.9},
+    "SNKF": {"cidade": "Conselheiro Lafaiete", "pista": "902 x 24", "op_noturna": "Não", "dist_planilha": 53.9, "restricao_anac": True},
     "SIWH": {"cidade": "Coromandel", "pista": "1300 x 20", "op_noturna": "Sim", "dist_planilha": 203.3},
     "SNQV": {"cidade": "Curvelo", "pista": "1200 x 23", "op_noturna": "Não", "dist_planilha": 72.2},
     "SNDT": {"cidade": "Diamantina", "pista": "1700 x 30", "op_noturna": "Sim", "dist_planilha": 98.8},
@@ -45,7 +46,7 @@ AEROPORTOS_MG = {
     "SNLG": {"cidade": "Jaboticatubas (PRIV)", "pista": "1260 x 20", "op_noturna": "Não", "dist_planilha": 28.5},
     "SNMK": {"cidade": "Jaíba", "pista": "1531 x 30", "op_noturna": "Não", "dist_planilha": 285},
     "SNAP": {"cidade": "Janaúba", "pista": "1500 x 30", "op_noturna": "Não", "dist_planilha": 270},
-    "SNJN": {"cidade": "Januária", "pista": "NÃO HOMOLOGADO", "op_noturna": "Não", "dist_planilha": 280},
+    "SNJN": {"cidade": "Januária", "pista": "NÃO HOMOLOGADO", "op_noturna": "Não", "dist_planilha": 280, "restricao_anac": True},
     "SNJI": {"cidade": "Jequitaí (PRIV)", "pista": "1080 x 18", "op_noturna": "Não", "dist_planilha": 190},
     "SNJQ": {"cidade": "Jequitinhonha", "pista": "1130 x 23", "op_noturna": "Não", "dist_planilha": 245},
     "SNJP": {"cidade": "João Pinheiro", "pista": "1300 x 23", "op_noturna": "Não", "dist_planilha": 210},
@@ -180,7 +181,6 @@ with col1:
         )
         distancia_manual = None
     else:
-        # Removido o step=0.1, mantendo apenas números inteiros
         distancia_manual = st.number_input("Insira a Distância do Trecho em Milhas Náuticas (NM):", min_value=1, value=100, step=1)
         indicativo_selecionado = None
 
@@ -200,7 +200,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         distancia = distancias_gps.get(indicativo_selecionado, dados_aeroporto['dist_planilha'])
         fonte_dist = "Satélite/GPS" if indicativo_selecionado in distancias_gps else "Planilha Histórica"
     else:
-        distancia = float(distancia_manual) # Converte para float para manter a matemática de tabelas funcionando
+        distancia = float(distancia_manual) 
         fonte_dist = "Inserção Manual"
 
     # --- LÓGICA DE VELOCIDADE & REGRA DE TABELAS ---
@@ -232,7 +232,13 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     
     if modo_consulta == "Selecionar Aeroporto na Lista (GPS)":
         info_col2.metric("Dimensões da Pista", dados_aeroporto['pista'])
-        info_col3.metric("Operação Noturna", "✅ Sim" if "Sim" in dados_aeroporto.get('op_noturna', '') else "⚠️ Não/Inoperante")
+        
+        # CHECAGEM DE RESTRIÇÃO DA ANAC PARA EXIBIR ALERTA
+        if dados_aeroporto.get("restricao_anac"):
+            info_col3.error("🚨 **AEROPORTO INOPERANTE POR DETERMINAÇÃO DA ANAC**")
+        else:
+            info_col3.metric("Operação Noturna", "✅ Sim" if "Sim" in dados_aeroporto.get('op_noturna', '') else "⚠️ Não/Inoperante")
+            
     else:
         info_col2.metric("Destino", "Não especificado")
         info_col3.metric("Operação Noturna", "Desconhecido")
