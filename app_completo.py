@@ -7,7 +7,6 @@ import math
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
 
 # --- BASE DE DADOS: AEROPORTOS (Plano B / Backup Offline) ---
-# Adicionada a flag "restricao_anac": True nos aeroportos inoperantes
 AEROPORTOS_MG = {
     "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 96.9, "restricao_anac": True},
     "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_planilha": 146.3},
@@ -97,7 +96,7 @@ AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[
 
 # --- BASE DE DADOS: FROTA ---
 FROTA = {
-    "Citation Bravo (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
+    "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
     "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
     "King Air B200 (PTWGS)": {
@@ -233,7 +232,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     if modo_consulta == "Selecionar Aeroporto na Lista (GPS)":
         info_col2.metric("Dimensões da Pista", dados_aeroporto['pista'])
         
-        # CHECAGEM DE RESTRIÇÃO DA ANAC PARA EXIBIR ALERTA
+        # CHECAGEM DE RESTRIÇÃO DA ANAC
         if dados_aeroporto.get("restricao_anac"):
             info_col3.error("🚨 **AEROPORTO INOPERANTE POR DETERMINAÇÃO DA ANAC**")
         else:
@@ -251,17 +250,34 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     
     st.divider()
 
-    res_col1, res_col2 = st.columns(2)
-    
-    with res_col1:
-        titulo_ida = f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**" if indicativo_selecionado else "🛫 **SOMENTE IDA**"
-        st.info(titulo_ida)
-        st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
-        st.write(f"**Tempo de Voo:** {decimal_para_hhmmss(tempo_decimal_trecho)}")
-        st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+    # --- TRAVA DE SEGURANÇA PARA O JATO (CITATION 550) EM PISTAS < 1200M ---
+    restricao_jato_pista_curta = False
+    if modo_consulta == "Selecionar Aeroporto na Lista (GPS)" and aeronave_selecionada == "Citation 550 (PP-LCE)":
+        pista_info = dados_aeroporto.get('pista', '')
+        try:
+            # Pega o primeiro valor antes do "x" (ex: pega 960 de "960 x 23")
+            comprimento_pista = int(pista_info.split('x')[0].strip())
+            if comprimento_pista < 1200:
+                restricao_jato_pista_curta = True
+        except ValueError:
+            # Caso a string seja "NÃO HOMOLOGADO" ou outro formato inesperado
+            restricao_jato_pista_curta = True
+
+    # Se a trava do jato for ativada, bloqueia o custo e exibe o alerta. Se não, segue normal.
+    if restricao_jato_pista_curta:
+        st.error("🚨 **AERONAVE NÃO PODE OPERAR NESTA PISTA**")
+    else:
+        res_col1, res_col2 = st.columns(2)
         
-    with res_col2:
-        st.error(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**")
-        st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
-        st.write(f"**Tempo Total de Voo:** {decimal_para_hhmmss(tempo_decimal_total)}")
-        st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        with res_col1:
+            titulo_ida = f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**" if indicativo_selecionado else "🛫 **SOMENTE IDA**"
+            st.info(titulo_ida)
+            st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
+            st.write(f"**Tempo de Voo:** {decimal_para_hhmmss(tempo_decimal_trecho)}")
+            st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            
+        with res_col2:
+            st.success(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**") # Alterado de st.error para st.success (cor verde)
+            st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
+            st.write(f"**Tempo Total de Voo:** {decimal_para_hhmmss(tempo_decimal_total)}")
+            st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
