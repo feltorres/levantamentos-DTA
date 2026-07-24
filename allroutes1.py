@@ -2,7 +2,6 @@ import streamlit as st
 import urllib.request
 import csv
 import math
-from st_copy_to_clipboard import st_copy_to_clipboard # Nova biblioteca para cópia segura
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
@@ -198,7 +197,7 @@ st.subheader("📍 Rota da Missão")
 opcoes_aeroportos = list(AEROPORTOS_ORDENADOS.keys())
 formatador = lambda x: f"{AEROPORTOS_ORDENADOS[x]['cidade']} ({x})"
 
-# Interface de Seleção Compactada (sem textos extras ou traços)
+# Interface de Seleção Compactada
 for i in range(len(st.session_state.trechos)):
     col1, col2, col3 = st.columns([3, 3, 4])
     with col1:
@@ -226,7 +225,7 @@ for i in range(len(st.session_state.trechos)):
         )
 
 # Botões de Adicionar/Remover
-st.write("") # Pequeno respiro visual
+st.write("")
 col_add, col_rem, _ = st.columns([2, 2, 8])
 col_add.button("➕ Adicionar Trecho", on_click=adicionar_trecho)
 if len(st.session_state.trechos) > 1:
@@ -273,7 +272,6 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         custo_perna = tempo_decimal * dados_aero['valor_hora']
         custo_total_missao += custo_perna
         
-        # Estrutura para o HTML
         linhas_tabela.append({
             "mun_orig": AEROPORTOS[origem]['cidade'],
             "uf_orig": AEROPORTOS[origem]['uf'],
@@ -281,7 +279,7 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
             "mun_dest": AEROPORTOS[destino]['cidade'],
             "uf_dest": AEROPORTOS[destino]['uf'],
             "ind_dest": destino,
-            "anv": dados_aero['tipo_sigla'], # A coluna agora chama ANV e fica após ICAO de Destino
+            "anv": dados_aero['tipo_sigla'],
             "tempo": decimal_para_hhmmss(tempo_decimal),
             "custo": custo_perna,
             "pax": dados_aero['pax']
@@ -292,11 +290,14 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         for erro in erros_restricao:
             st.error(f"🚨 {erro}")
     else:
-        # GERADOR HTML SEGURO (Compacto numa só variável para não quebrar no Streamlit)
         html_linhas = ""
+        tsv_conteudo = "MUNICÍPIO - DECOLAGEM\tUF\tICAO\tMUNICÍPIO - POUSO\tUF\tICAO\tANV\tTEMPO DE DESLOCAMENTO\tCUSTO TOTAL ESTIMADO DA MISSÃO\tCAPACIDADE\n"
+        
         for linha in linhas_tabela:
             custo_formatado = f"R$ {linha['custo']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
             pax_formatado = str(linha['pax']).replace('\n', '<br>')
+            pax_texto_simples = str(linha['pax']).replace('\n', ' ')
+            
             html_linhas += (
                 "<tr>"
                 f"<td style='padding: 8px; border: 1px solid #000000;'>{linha['mun_orig']}</td>"
@@ -312,41 +313,11 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
                 "</tr>"
             )
             
+            tsv_conteudo += f"{linha['mun_orig']}\t{linha['uf_orig']}\t{linha['ind_orig']}\t{linha['mun_dest']}\t{linha['uf_dest']}\t{linha['ind_dest']}\t{linha['anv']}\t{linha['tempo']}\t{custo_formatado}\t{pax_texto_simples}\n"
+            
         custo_final_formatado = f"R$ {custo_total_missao:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        tsv_conteudo += f"TOTAL\t\t\t\t\t\t\t\t{custo_final_formatado}\t\n"
         
-        # ESTRUTURA COMPLETA DA TABELA EM HTML PURO PARA O COPYBOARD FUNCIONAR CORRETAMENTE NO EXCEL
-        tabela_html_pura = (
-            "<table>"
-            "<thead>"
-            "<tr>"
-            "<th colspan='3'>ORIGEM</th>"
-            "<th colspan='3'>DESTINO</th>"
-            "<th colspan='4'>AERONAVE / FROTA MULTIPERNA</th>"
-            "</tr>"
-            "<tr>"
-            "<th>MUNICÍPIO - DECOLAGEM</th>"
-            "<th>UF</th>"
-            "<th>ICAO</th>"
-            "<th>MUNICÍPIO - POUSO</th>"
-            "<th>UF</th>"
-            "<th>ICAO</th>"
-            "<th>ANV</th>"
-            "<th>TEMPO DE DESLOCAMENTO</th>"
-            "<th>CUSTO TOTAL ESTIMADO DA MISSÃO</th>"
-            "<th>CAPACIDADE</th>"
-            "</tr>"
-            "</thead>"
-            "<tbody>"
-            f"{html_linhas}"
-            "<tr>"
-            "<td colspan='8'>TOTAL</td>"
-            f"<td colspan='2'>{custo_final_formatado}</td>"
-            "</tr>"
-            "</tbody>"
-            "</table>"
-        )
-        
-        # ESTRUTURA VISUAL PARA A TELA
         tabela_html_visual = (
             "<div style='overflow-x: auto;'>"
             "<table style='width:100%; text-align:center; border-collapse: collapse; font-family: sans-serif; border: 2px solid #000000;'>"
@@ -382,7 +353,8 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
         
         st.success("✅ Rotas calculadas e validadas com sucesso.")
         
-        # Botão oficial do Streamlit (Componente Seguro)
-        st_copy_to_clipboard(tabela_html_pura, before_copy_label="📋 Copiar", after_copy_label="✅ Copiado!")
+        st.markdown("### 📋 Copiar Tabela para o Excel")
+        st.caption("Clique no botão de cópia no canto superior direito do bloco abaixo, depois vá até o Excel e cole (`Ctrl+V`):")
+        st.code(tsv_conteudo, language="text")
         
         st.markdown(tabela_html_visual, unsafe_allow_html=True)
