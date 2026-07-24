@@ -96,7 +96,6 @@ AEROPORTOS_ORDENADOS = dict(sorted(AEROPORTOS_MG.items(), key=lambda item: item[
 
 # --- BASE DE DADOS: FROTA ---
 FROTA = {
-    "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "pax": "Até 09 Pax"},
     "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
     "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
@@ -124,7 +123,6 @@ def calcular_distancia_nm(lat1, lon1, lat2, lon2):
 def buscar_coordenadas_e_distancias():
     url = "https://davidmegginson.github.io/ourairports-data/airports.csv"
     try:
-        # Timeout curto (5s) para evitar que o app trave se a API mundial estiver fora do ar
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         with urllib.request.urlopen(req, timeout=5) as response:
             linhas = [linha.decode('utf-8') for linha in response.readlines()]
@@ -137,21 +135,25 @@ def buscar_coordenadas_e_distancias():
         sbbh = coords['SBBH']
         return {icao: calcular_distancia_nm(sbbh['lat'], sbbh['lon'], c['lat'], c['lon']) for icao, c in coords.items()}
     except Exception:
-        # Falha de conexão: Retorna vazio e força o sistema a usar as distâncias da Planilha
         return {}
 
-# --- FUNÇÃO AUXILIAR DE TEMPO ---
-def decimal_para_horas_minutos(tempo_decimal):
-    """Converte tempo decimal para string (Xh Ym) com arredondamento matemático correto."""
+# --- FUNÇÃO AUXILIAR DE TEMPO EM FORMATO HH:MM:SS ---
+def decimal_para_hhmmss(tempo_decimal):
+    """Converte tempo decimal para string no formato HH:MM:SS."""
     horas = int(tempo_decimal)
-    minutos = round((tempo_decimal - horas) * 60)
+    minutos_dec = (tempo_decimal - horas) * 60
+    minutos = int(minutos_dec)
+    segundos = round((minutos_dec - minutos) * 60)
     
-    # Tratamento matemático (ex: 59.8 mins viram 60, o que soma 1 hora)
+    # Ajustes de rolagem (ex: se arredondar 59.6 seg para 60, vira 1 min)
+    if segundos == 60:
+        segundos = 0
+        minutos += 1
     if minutos == 60:
-        horas += 1
         minutos = 0
+        horas += 1
         
-    return f"{horas}h {minutos:02d}m"
+    return f"{horas:02d}:{minutos:02d}:{segundos:02d}"
 
 # --- INTERFACE DE USUÁRIO ---
 st.title("🚁 Planejador de Missões Aéreas - DTA")
@@ -232,11 +234,11 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     with res_col1:
         st.info(f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**")
         st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
-        st.write(f"**Tempo de Voo:** {decimal_para_horas_minutos(tempo_decimal_trecho)}")
+        st.write(f"**Tempo de Voo:** {decimal_para_hhmmss(tempo_decimal_trecho)}")
         st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         
     with res_col2:
         st.error(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**")
         st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
-        st.write(f"**Tempo Total de Voo:** {decimal_para_horas_minutos(tempo_decimal_total)}")
+        st.write(f"**Tempo Total de Voo:** {decimal_para_hhmmss(tempo_decimal_total)}")
         st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
