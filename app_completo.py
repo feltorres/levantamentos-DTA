@@ -99,8 +99,9 @@ FROTA = {
     "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "pax": "Até 09 Pax"},
     "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
-    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax com bagagem ou 9 sem bagagem"},
-    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "pax": "7 Pax com bagagem ou 9 sem bagagem"},
+    # O caracter \n cria a quebra de linha internamente na lógica
+    "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
+    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
     "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "pax": "06 Pax"},
     "Dauphin N3 (PR-DTG)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "06 Pax"},
     "Dauphin N2 (PP-EPO)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "05 Pax"},
@@ -185,7 +186,14 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     info_col1.metric("Distância (Trecho)", f"{distancia} NM", f"Fonte: {fonte_dist}", delta_color="off")
     info_col2.metric("Dimensões da Pista", dados_aeroporto['pista'])
     info_col3.metric("Operação Noturna", "✅ Sim" if "Sim" in dados_aeroporto.get('op_noturna', '') else "⚠️ Não/Inoperante")
-    info_col4.metric("Capacidade da Aeronave", dados_aeronave['pax'])
+    
+    # Tratamento Visual Inteligente para quebra de linha da Capacidade (Pax)
+    pax_info = dados_aeronave['pax'].split('\n')
+    if len(pax_info) > 1:
+        # Se tiver quebra de linha, ele joga a segunda parte para a área de "delta" do componente visual (em cinza logo abaixo)
+        info_col4.metric("Capacidade da Aeronave", pax_info[0], pax_info[1], delta_color="off")
+    else:
+        info_col4.metric("Capacidade da Aeronave", pax_info[0])
     
     st.divider()
 
