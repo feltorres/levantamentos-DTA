@@ -6,7 +6,7 @@ import math
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Planejador de Missões - DTA", page_icon="🚁", layout="wide")
 
-# --- BASE DE DADOS: AEROPORTOS (Plano B da Distância) ---
+# --- BASE DE DADOS: AEROPORTOS (Plano B / Backup Offline) ---
 AEROPORTOS_MG = {
     "SNLI": {"cidade": "Abaeté", "pista": "1200 x 30", "op_noturna": "Não", "dist_planilha": 96.9},
     "SNFE": {"cidade": "Alfenas", "pista": "1600 x 30", "op_noturna": "Sim", "dist_planilha": 146.3},
@@ -99,9 +99,14 @@ FROTA = {
     "Citation 650 (PTMGS)": {"vel_kt": 310, "valor_hora": 38438.49, "pax": "Até 09 Pax"},
     "Citation 550 (PP-LCE)": {"vel_kt": 290, "valor_hora": 18266.14, "pax": "07 Pax"},
     "King Air B350 (PR-XAA)": {"vel_kt": 220, "valor_hora": 12318.67, "pax": "Até 09 Pax C/ bagagem"},
-    # O caracter \n cria a quebra de linha internamente na lógica
     "King Air B300 (PP-EJO)": {"vel_kt": 220, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
-    "King Air B200 (PTWGS)": {"vel_kt": 200, "valor_hora": 9705.13, "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem"},
+    "King Air B200 (PTWGS)": {
+        "vel_kt": 200,             # Velocidade Base (Tabela 1: < 1h)
+        "vel_kt_t2": 225,          # Velocidade Rápida (Tabela 2: >= 1h)
+        "valor_hora": 9705.13, 
+        "pax": "7 Pax c/ Bagagem\n9 Pax s/ Bagagem", 
+        "regra_tabela_dupla": True # Ativa a lógica de troca de velocidade
+    },
     "King Air C90 (PR/PT-OSO)": {"vel_kt": 200, "valor_hora": 6323.05, "pax": "06 Pax"},
     "Dauphin N3 (PR-DTG)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "06 Pax"},
     "Dauphin N2 (PP-EPO)": {"vel_kt": 110, "valor_hora": 26135.07, "pax": "05 Pax"},
@@ -119,9 +124,11 @@ def calcular_distancia_nm(lat1, lon1, lat2, lon2):
 def buscar_coordenadas_e_distancias():
     url = "https://davidmegginson.github.io/ourairports-data/airports.csv"
     try:
+        # Timeout curto (5s) para evitar que o app trave se a API mundial estiver fora do ar
         req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
+        with urllib.request.urlopen(req, timeout=5) as response:
             linhas = [linha.decode('utf-8') for linha in response.readlines()]
+        
         leitor = csv.DictReader(linhas)
         coords = {linha['ident']: {'lat': float(linha['latitude_deg']), 'lon': float(linha['longitude_deg'])} 
                   for linha in leitor if linha['ident'] == 'SBBH' or linha['ident'] in AEROPORTOS_MG}
@@ -130,12 +137,20 @@ def buscar_coordenadas_e_distancias():
         sbbh = coords['SBBH']
         return {icao: calcular_distancia_nm(sbbh['lat'], sbbh['lon'], c['lat'], c['lon']) for icao, c in coords.items()}
     except Exception:
+        # Falha de conexão: Retorna vazio e força o sistema a usar as distâncias da Planilha
         return {}
 
 # --- FUNÇÃO AUXILIAR DE TEMPO ---
 def decimal_para_horas_minutos(tempo_decimal):
+    """Converte tempo decimal para string (Xh Ym) com arredondamento matemático correto."""
     horas = int(tempo_decimal)
-    minutos = int((tempo_decimal - horas) * 60)
+    minutos = round((tempo_decimal - horas) * 60)
+    
+    # Tratamento matemático (ex: 59.8 mins viram 60, o que soma 1 hora)
+    if minutos == 60:
+        horas += 1
+        minutos = 0
+        
     return f"{horas}h {minutos:02d}m"
 
 # --- INTERFACE DE USUÁRIO ---
@@ -163,49 +178,65 @@ if st.button("Calcular Missão Completa", type="primary", use_container_width=Tr
     with st.spinner("Buscando coordenadas satelitais e processando custos..."):
         distancias_gps = buscar_coordenadas_e_distancias()
         
-    # Lógica de Distância
+    # Lógica de Definição de Distância
     distancia = distancias_gps.get(indicativo_selecionado, dados_aeroporto['dist_planilha'])
     fonte_dist = "Satélite/GPS" if indicativo_selecionado in distancias_gps else "Planilha Histórica"
 
-    # Cálculos Matemáticos (Trecho Único)
+    # --- LÓGICA DE VELOCIDADE & REGRA DE TABELAS ---
     vel_kt = dados_aeronave['vel_kt']
-    tempo_decimal_trecho = distancia / vel_kt
+    aviso_tabela = ""
+
+    # Se a aeronave possui Tabela Dupla de Performance (ex: B200)
+    if dados_aeronave.get("regra_tabela_dupla"):
+        tempo_estimado_base = distancia / vel_kt
         
+        # Regra de Negócio: Se o tempo na vel. base for >= 1h, engaja Tabela 2
+        if tempo_estimado_base >= 1.0:
+            vel_kt = dados_aeronave['vel_kt_t2']
+            aviso_tabela = f"*(Tabela 2: ≥ 1h)*"
+        else:
+            aviso_tabela = f"*(Tabela 1: < 1h)*"
+
+    # --- CÁLCULOS MATEMÁTICOS FINAIS ---
+    # Trecho Único (Ida)
+    tempo_decimal_trecho = distancia / vel_kt
     custo_trecho = tempo_decimal_trecho * dados_aeronave['valor_hora']
 
-    # Cálculos Matemáticos (Ida e Volta)
+    # Missão Completa (Ida e Volta)
     tempo_decimal_total = tempo_decimal_trecho * 2
     custo_total = custo_trecho * 2
 
-    # Exibição dos Resultados
+    # --- EXIBIÇÃO DOS RESULTADOS ---
     st.success("✅ Missão processada com sucesso!")
     
-    # 1. Informações do Destino e Aeronave
     st.markdown("### 📊 Resumo Operacional")
     info_col1, info_col2, info_col3, info_col4 = st.columns(4)
+    
+    # Renderização da Linha de Informações do Aeroporto e Aeronave
     info_col1.metric("Distância (Trecho)", f"{distancia} NM", f"Fonte: {fonte_dist}", delta_color="off")
     info_col2.metric("Dimensões da Pista", dados_aeroporto['pista'])
     info_col3.metric("Operação Noturna", "✅ Sim" if "Sim" in dados_aeroporto.get('op_noturna', '') else "⚠️ Não/Inoperante")
     
-    # Tratamento Visual Inteligente para quebra de linha da Capacidade (Pax)
+    # Tratamento Visual para Capacidade (Pax) com quebra de linha
     pax_info = dados_aeronave['pax'].split('\n')
     if len(pax_info) > 1:
-        # Se tiver quebra de linha, ele joga a segunda parte para a área de "delta" do componente visual (em cinza logo abaixo)
         info_col4.metric("Capacidade da Aeronave", pax_info[0], pax_info[1], delta_color="off")
     else:
         info_col4.metric("Capacidade da Aeronave", pax_info[0])
     
     st.divider()
 
-    # 2. Custos e Tempos (Comparativo Trecho vs Completo)
+    # Renderização da Linha de Resultados Financeiros e Tempo
     res_col1, res_col2 = st.columns(2)
     
     with res_col1:
         st.info(f"🛫 **SOMENTE IDA (SBBH ➔ {indicativo_selecionado})**")
+        st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
         st.write(f"**Tempo de Voo:** {decimal_para_horas_minutos(tempo_decimal_trecho)}")
         st.write(f"**Custo da Hora/Voo:** R$ {custo_trecho:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         
     with res_col2:
         st.error(f"🔄 **MISSÃO COMPLETA (Ida e Volta)**")
+        st.write(f"**Velocidade Média Aplicada:** {vel_kt} Kt {aviso_tabela}")
         st.write(f"**Tempo Total de Voo:** {decimal_para_horas_minutos(tempo_decimal_total)}")
         st.write(f"**Custo Total Estimado:** R$ {custo_total:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
