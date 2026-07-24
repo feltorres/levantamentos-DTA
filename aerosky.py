@@ -61,7 +61,51 @@ def get_coords_from_skyvector(icao):
 
 
 # ---------------------------------------------------------
-# Distância ortodrômica (NM)
+# Coordenadas da origem SBBH (fixas, oficiais)
 # ---------------------------------------------------------
 
-def hav
+SBBH_LAT = -19.8511
+SBBH_LON = -43.9506
+
+print(f"SBBH LAT={SBBH_LAT}, LON={SBBH_LON}\n")
+
+
+# ---------------------------------------------------------
+# Lista de ICAOs (Ipatinga → Viçosa)
+# ---------------------------------------------------------
+
+ICAOS = [
+    "SBIP","SNZK","SNYB","SNYU","SNLG","SNMK","SNAP","SNCK","SNJI","SNJQ","SNJP",
+    "SBJF","SNLY","SBLS","SSOL","SNJM","SWWM","SSYF","SBMK","SNBM","SNNU","SNTD",
+    "SSYD","SNRZ","SNOF","SNPA","SNZR","SWZT","SNOS","SNPD","SNPJ","SNPX","SNUH",
+    "SBPC","SNCZ","SNZA","SNSS","SIEX","SNJV","SNJR","SNLO","SNPY","SDJR","SNTO",
+    "SNVI","SNAS","SNFI","SNUB","SBUR","SBUL","SBVG","SSAT","SNVC"
+]
+
+
+# ---------------------------------------------------------
+# Cálculo das distâncias
+# ---------------------------------------------------------
+
+distancias = {}
+
+for icao in ICAOS:
+    try:
+        print(f"Buscando coordenadas de {icao}...")
+        lat, lon = get_coords_from_skyvector(icao)
+        dist_nm = round(haversine_nm(SBBH_LAT, SBBH_LON, lat, lon), 1)
+        distancias[icao] = dist_nm
+        print(f"{icao}: {dist_nm} NM\n")
+        time.sleep(1)
+    except Exception as e:
+        print(f"Erro ao processar {icao}: {e}")
+
+
+# ---------------------------------------------------------
+# Salvar JSON
+# ---------------------------------------------------------
+
+with open("distancias.json", "w") as f:
+    json.dump(distancias, f, indent=4)
+
+print("\nArquivo distancias.json criado com sucesso!")
