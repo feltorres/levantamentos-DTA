@@ -9,7 +9,6 @@ import time
 # ---------------------------------------------------------
 
 def dms_to_decimal(dms):
-    # Exemplo: 19°51'03"S
     dms = dms.replace("°", " ").replace("'", " ").replace('"', " ")
     parts = dms.split()
 
@@ -37,7 +36,6 @@ def get_coords_from_skyvector(icao):
     r = requests.get(url, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    # Latitude e longitude ficam na tabela aptHeaderTable
     table = soup.find("table", {"class": "aptHeaderTable"})
     if not table:
         raise ValueError(f"Não encontrei tabela de coordenadas para {icao}")
@@ -66,67 +64,4 @@ def get_coords_from_skyvector(icao):
 # Distância ortodrômica (NM)
 # ---------------------------------------------------------
 
-def haversine_nm(lat1, lon1, lat2, lon2):
-    R_km = 6371.0
-    R_nm = R_km / 1.852
-
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = math.sin(dlat/2)**2 + math.cos(lat1)*math.cos(lat2)*math.sin(dlon/2)**2
-    c = 2 * math.asin(math.sqrt(a))
-
-    return R_nm * c
-
-
-# ---------------------------------------------------------
-# Coordenadas da origem SBBH
-# ---------------------------------------------------------
-
-print("Buscando coordenadas de SBBH...")
-SBBH_LAT, SBBH_LON = get_coords_from_skyvector("SBBH")
-print(f"SBBH LAT={SBBH_LAT}, LON={SBBH_LON}\n")
-
-
-# ---------------------------------------------------------
-# Lista de ICAOs (Ipatinga → Viçosa)
-# ---------------------------------------------------------
-
-ICAOS = [
-    "SBIP","SNZK","SNYB","SNYU","SNLG","SNMK","SNAP","SNCK","SNJI","SNJQ","SNJP",
-    "SBJF","SNLY","SBLS","SSOL","SNJM","SWWM","SSYF","SBMK","SNBM","SNNU","SNTD",
-    "SSYD","SNRZ","SNOF","SNPA","SNZR","SWZT","SNOS","SNPD","SNPJ","SNPX","SNUH",
-    "SBPC","SNCZ","SNZA","SNSS","SIEX","SNJV","SNJR","SNLO","SNPY","SDJR","SNTO",
-    "SNVI","SNAS","SNFI","SNUB","SBUR","SBUL","SBVG","SSAT","SNVC"
-]
-
-
-# ---------------------------------------------------------
-# Cálculo das distâncias
-# ---------------------------------------------------------
-
-distancias = {}
-
-for icao in ICAOS:
-    try:
-        print(f"Buscando coordenadas de {icao}...")
-        lat, lon = get_coords_from_skyvector(icao)
-        dist_nm = round(haversine_nm(SBBH_LAT, SBBH_LON, lat, lon), 1)
-        distancias[icao] = dist_nm
-        print(f"{icao}: {dist_nm} NM\n")
-        time.sleep(1)
-    except Exception as e:
-        print(f"Erro ao processar {icao}: {e}")
-
-
-# ---------------------------------------------------------
-# Salvar JSON
-# ---------------------------------------------------------
-
-with open("distancias.json", "w") as f:
-    json.dump(distancias, f, indent=4)
-
-print("\nArquivo distancias.json criado com sucesso!")
-
+def hav
